@@ -8,7 +8,6 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.command.CommandSource;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.dimension.DimensionType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.kilocraft.essentials.KiloCommands;
@@ -18,6 +17,7 @@ import org.kilocraft.essentials.api.feature.ConfigurableFeature;
 import org.kilocraft.essentials.provided.KiloFile;
 import org.kilocraft.essentials.simplecommand.SimpleCommandManager;
 import org.kilocraft.essentials.util.nbt.NBTStorageUtil;
+import org.kilocraft.essentials.util.registry.RegistryUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +58,7 @@ public class ServerWarpManager implements ConfigurableFeature, NBTStorage {
 
         if (warp.addCommand()) {
             SimpleCommandManager.unregister("server_warp:" + warp.getName().toLowerCase(Locale.ROOT));
-            KiloCommands.updateCommandTreeForEveryone();
+            KiloCommands.updateGlobalCommandTree();
         }
     }
 
@@ -82,7 +82,7 @@ public class ServerWarpManager implements ConfigurableFeature, NBTStorage {
     }
 
     public static int teleport(ServerCommandSource source, ServerWarp warp) throws CommandSyntaxException {
-        ServerWorld world = source.getMinecraftServer().getWorld(DimensionType.byId(warp.getLocation().getDimension()));
+        ServerWorld world = RegistryUtils.toServerWorld(warp.getLocation().getDimensionType());
         source.getPlayer().teleport(world, warp.getLocation().getX(), warp.getLocation().getY(), warp.getLocation().getZ(),
                 warp.getLocation().getRotation().getYaw(), warp.getLocation().getRotation().getPitch());
 

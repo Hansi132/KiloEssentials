@@ -1,41 +1,57 @@
 package org.kilocraft.essentials.commands.moderation;
 
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
-import net.minecraft.command.EntitySelector;
-import net.minecraft.command.arguments.EntityArgumentType;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.server.command.ServerCommandSource;
-import org.kilocraft.essentials.KiloCommands;
-import org.kilocraft.essentials.api.command.ArgumentCompletions;
+import org.jetbrains.annotations.Nullable;
+import org.kilocraft.essentials.CommandPermission;
+import org.kilocraft.essentials.api.KiloServer;
+import org.kilocraft.essentials.api.command.EssentialCommand;
+import org.kilocraft.essentials.api.user.CommandSourceUser;
+import org.kilocraft.essentials.api.user.PunishmentManager;
+import org.kilocraft.essentials.api.user.punishment.Punishment;
+import org.kilocraft.essentials.util.TimeDifferenceUtil;
 
-import static com.mojang.brigadier.arguments.StringArgumentType.getString;
-import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
-import static org.kilocraft.essentials.KiloCommands.hasPermission;
+import java.util.Date;
 
-public class MuteCommand {
-    public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
-        LiteralArgumentBuilder<ServerCommandSource> rootCommand = literal("mute")
-                .requires(src -> hasPermission(src, "mute", 3))
-                .executes(KiloCommands::executeSmartUsage);
-
-        RequiredArgumentBuilder<ServerCommandSource, EntitySelector> selectorArg = argument("target", EntityArgumentType.player())
-                .suggests(ArgumentCompletions::allPlayers)
-                .executes(ctx -> execute(ctx.getSource(), null));
-
-        RequiredArgumentBuilder<ServerCommandSource, String> reasonArg = argument("reason", greedyString())
-                .executes(ctx -> execute(ctx.getSource(), getString(ctx, "reason")));
-
-        selectorArg.then(reasonArg);
-        rootCommand.then(selectorArg);
-        dispatcher.register(rootCommand);
+public class MuteCommand extends EssentialCommand {
+    public MuteCommand() {
+        super("mute", CommandPermission.MUTE);
     }
 
-    private static int execute(ServerCommandSource source, String reason) {
-
-        return 1;
+    @Override
+    public void register(CommandDispatcher<ServerCommandSource> dispatcher) {
+        final RequiredArgumentBuilder<ServerCommandSource, String> userArgument = this.getUserArgument("victim")
+                .executes(ctx -> this.execute(ctx, null, null));
+        final RequiredArgumentBuilder<ServerCommandSource, String> reasonArgument = argument("reason", StringArgumentType.string())
+                .executes(ctx -> this.execute(ctx, StringArgumentType.getString(ctx, "reason"), null));
+        final RequiredArgumentBuilder<ServerCommandSource, String> lengthArgument = argument("length", StringArgumentType.string()).suggests(TimeDifferenceUtil::listSuggestions)
+                .executes(ctx -> this.execute(ctx, StringArgumentType.getString(ctx, "reason"), StringArgumentType.getString(ctx, "length")));
+        reasonArgument.then(lengthArgument);
+        userArgument.then(reasonArgument);
+        this.argumentBuilder.then(userArgument);
     }
 
+    private int execute(final CommandContext<ServerCommandSource> ctx, @Nullable String reason, String expiryString) throws CommandSyntaxException {
+        final CommandSourceUser src = this.getServerUser(ctx);
+        final String input = this.getUserArgumentInput(ctx, "victim");
+        Date expiry = expiryString == null ? null : new Date(TimeDifferenceUtil.parse(expiryString, true));
+
+        this.essentials.getUserThenAcceptAsync(src, input, (victim) -> {
+            Punishment punishment = new Punishment(
+                    src,
+                    victim,
+                    null,
+                    reason,
+                    expiry
+            );
+
+            this.server.getUserManager().performPunishment(punishment, Punishment.Type.MUTE, (result) -> { });
+        });
+
+        return AWAIT;
+    }
 }

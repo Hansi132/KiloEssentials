@@ -1,6 +1,7 @@
 package org.kilocraft.essentials;
 
 import org.jetbrains.annotations.Nullable;
+import org.kilocraft.essentials.util.PermissionUtil;
 
 public enum CommandPermission {
     PING_SELF("ping.self"),
@@ -93,30 +94,33 @@ public enum CommandPermission {
     PLAYTIME_MODIFY("playtime.modify"),
     PLAYTIMETOP("playtimetop"),
     IGNORELIST_OTHERS("ignorelist.others"),
-    BAN_IP("ban.ip"),
-    BAN_PROFILE("ban.profile"),
+    BAN("ban"),
+    IPBAN("ipban"),
+    MUTE("mute"),
     KICK("kick"),
     TELEPORTREQUEST("teleportrequest"),
     LASTSEEN("lastseen"),
     CALCULATE("calculate"),
     GLOW("glow"),
-    HUG_USE("hug.use"),
-    HUG_BYPASS("hug.bypass"),
-    ;
-    private String node;
+    HUG_USE("hug"),
+    HUG_BYPASS("hug.bypass");
+
+    private final String node;
+
     CommandPermission(String string) {
         this.node = string;
     }
 
     public String getNode() {
-        return KiloCommands.PERMISSION_PREFIX + node;
+        return PermissionUtil.COMMAND_PERMISSION_PREFIX + node;
     }
 
     @Nullable
     public static CommandPermission byName(String name) {
         for (CommandPermission value : CommandPermission.values()) {
-            if (name.toLowerCase().equals(value.node.toLowerCase()))
+            if (name.toLowerCase().equals(value.node.toLowerCase())) {
                 return value;
+            }
         }
 
         return null;

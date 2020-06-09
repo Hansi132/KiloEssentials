@@ -1,5 +1,6 @@
 package org.kilocraft.essentials.listeners;
 
+import org.jetbrains.annotations.NotNull;
 import org.kilocraft.essentials.KiloCommands;
 import org.kilocraft.essentials.KiloDebugUtils;
 import org.kilocraft.essentials.KiloEssentialsImpl;
@@ -14,24 +15,24 @@ import org.kilocraft.essentials.util.nbt.NBTStorageUtil;
 
 public class OnReload implements EventHandler<ServerReloadEvent> {
     @Override
-    public void handle(ServerReloadEvent event) {
+    public void handle(@NotNull ServerReloadEvent event) {
         try {
-            KiloConfig.reload();
+            KiloConfig.load();
             BrandedServer.load();
             KiloServer.getServer().getMetaManager().load();
             KiloServer.getServer().getMetaManager().updateAll();
             ServerChat.load();
 
-            KiloEssentials.getInstance().getFeatures().loadAll();
             KiloEssentialsImpl.getInstance().onServerLoad();
 
             NBTStorageUtil.onSave();
 
             KiloDebugUtils.validateDebugMode(true);
+            KiloServer.getServer().setName(KiloConfig.main().server().name);
         } catch (Exception e) {
             KiloEssentials.getLogger().error("An unexpected error occurred while reloading the server!", e);
         }
 
-        KiloCommands.updateCommandTreeForEveryone();
+        KiloCommands.updateGlobalCommandTree();
     }
 }

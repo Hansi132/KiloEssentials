@@ -4,11 +4,10 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.text.Text;
 import org.jetbrains.annotations.Nullable;
 import org.kilocraft.essentials.api.NBTSerializable;
-import org.kilocraft.essentials.api.feature.FeatureType;
-import org.kilocraft.essentials.api.feature.UserProvidedFeature;
 import org.kilocraft.essentials.api.text.MessageReceptionist;
 import org.kilocraft.essentials.api.user.settting.Setting;
 import org.kilocraft.essentials.api.user.settting.UserSettings;
+import org.kilocraft.essentials.api.util.EntityIdentifiable;
 import org.kilocraft.essentials.api.world.location.Location;
 import org.kilocraft.essentials.user.UserHomeHandler;
 
@@ -31,7 +30,7 @@ import java.util.UUID;
  * @since 1.5
  * @author CODY_AI (OnBlock)
  */
-public interface User extends MessageReceptionist, NBTSerializable {
+public interface User extends EntityIdentifiable, NBTSerializable, MessageReceptionist{
     /**
      * Gets the Unique Unified Identifier of this User
      * @return UUID of this user
@@ -170,9 +169,6 @@ public interface User extends MessageReceptionist, NBTSerializable {
      */
     @Nullable
     Date getLastOnline();
-
-    @Deprecated
-    <F extends UserProvidedFeature> F feature(FeatureType<F> type);
 
     /**
      * Gets the HomeHandler of this user

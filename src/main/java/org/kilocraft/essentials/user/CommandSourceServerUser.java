@@ -18,8 +18,6 @@ import org.kilocraft.essentials.CommandPermission;
 import org.kilocraft.essentials.EssentialPermission;
 import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.ModConstants;
-import org.kilocraft.essentials.api.feature.FeatureType;
-import org.kilocraft.essentials.api.feature.UserProvidedFeature;
 import org.kilocraft.essentials.api.text.MessageReceptionist;
 import org.kilocraft.essentials.api.text.TextFormat;
 import org.kilocraft.essentials.api.user.CommandSourceUser;
@@ -162,11 +160,6 @@ public class CommandSourceServerUser implements CommandSourceUser {
     }
 
     @Override
-    public <F extends UserProvidedFeature> F feature(FeatureType<F> type) {
-        return null;
-    }
-
-    @Override
     public UserHomeHandler getHomesHandler() {
         return null;
     }
@@ -234,7 +227,7 @@ public class CommandSourceServerUser implements CommandSourceUser {
     @Override
     public void sendSystemMessage(Object sysMessage) {
         try {
-            this.getUser().sendSystemMessage(sysMessage);
+            Objects.requireNonNull(this.getUser()).sendSystemMessage(sysMessage);
         } catch (CommandSyntaxException ignored) {
             if (sysMessage instanceof String) {
                 this.sendMessage((String) sysMessage);
@@ -280,7 +273,7 @@ public class CommandSourceServerUser implements CommandSourceUser {
     }
 
     @Override
-    public void sendLangError(String key, Object... objects) {
+    public void sendLangError(@NotNull String key, Object... objects) {
         this.sendError(ModConstants.translation(key, objects));
     }
 
@@ -304,7 +297,7 @@ public class CommandSourceServerUser implements CommandSourceUser {
     }
 
     @Override
-    public void sendLangMessage(String key, Object... objects) {
+    public void sendLangMessage(@NotNull String key, Object... objects) {
         KiloChat.sendLangMessageTo(this.source, key, objects);
     }
 
@@ -387,7 +380,7 @@ public class CommandSourceServerUser implements CommandSourceUser {
 
     @Override
     public String getName() {
-        return null;
+        return this.source.getName();
     }
 
     @Override

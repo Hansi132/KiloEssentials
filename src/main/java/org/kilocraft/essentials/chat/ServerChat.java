@@ -2,6 +2,7 @@ package org.kilocraft.essentials.chat;
 
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import net.minecraft.SharedConstants;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.packet.s2c.play.PlaySoundIdS2CPacket;
 import net.minecraft.server.command.ServerCommandSource;
@@ -17,6 +18,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.kilocraft.essentials.EssentialPermission;
 import org.kilocraft.essentials.KiloCommands;
+import org.kilocraft.essentials.KiloDebugUtils;
 import org.kilocraft.essentials.api.KiloEssentials;
 import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.ModConstants;
@@ -31,8 +33,8 @@ import org.kilocraft.essentials.user.OnlineServerUser;
 import org.kilocraft.essentials.user.ServerUser;
 import org.kilocraft.essentials.user.setting.Settings;
 import org.kilocraft.essentials.util.RegexLib;
-import org.kilocraft.essentials.util.text.Texter;
 import org.kilocraft.essentials.util.messages.nodes.ExceptionMessageNode;
+import org.kilocraft.essentials.util.text.Texter;
 
 import java.rmi.UnexpectedException;
 import java.text.DateFormat;
@@ -44,6 +46,11 @@ import java.util.regex.Pattern;
 
 public final class ServerChat {
     private static final String DEBUG_EXCEPTION = "--texc";
+    private static final DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
+    private static final Pattern LINK_PATTERN = Pattern.compile(RegexLib.URL.get());
+    private static final int LINK_MAX_LENGTH = 20;
+    private static final int COMMAND_MAX_LENGTH = 45;
+    private static final SimpleCommandExceptionType CANT_MESSAGE_EXCEPTION = new SimpleCommandExceptionType(LangText.getFormatter(true, "command.message.error"));
     private static ChatConfigSection config;
     private static String pingEveryoneTemplate;
     private static String senderFormat;
@@ -51,19 +58,12 @@ public final class ServerChat {
     private static String pingFailedDisplayFormat;
     private static String everyoneDisplayFormat;
     private static String itemFormat;
-
     private static String hoverStyle = ModConstants.translation("channel.message.hover");
     private static String hoverStyleNicked = ModConstants.translation("channel.message.hover.nicked");
     private static String hoverDateStyle = ModConstants.translation("channel.message.hover.time");
     private static String commandSpyHoverStyle = ModConstants.translation("channel.commandspy.hover");
-
     private static boolean pingSoundEnabled;
     private static boolean pingEnabled;
-
-    private static final DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
-    private static final Pattern LINK_PATTERN = Pattern.compile(RegexLib.URL.get());
-    private static final int LINK_MAX_LENGTH = 20;
-    private static final int COMMAND_MAX_LENGTH = 45;
 
     public static void load() {
         config = KiloConfig.main().chat();
@@ -81,12 +81,13 @@ public final class ServerChat {
         try {
             send(sender, message, channel);
         } catch (Exception e) {
-            sender.getCommandSource().sendError(
-                    Texter.newText("an unexpected exception occurred while processing the message")
-                            .append("\n").append(Util.getInnermostMessage(e))
-            );
+            MutableText text = Texter.newTranslatable("command.failed");
+            if (SharedConstants.isDevelopment) {
+                text.append("\n").append(Util.getInnermostMessage(e));
+                KiloDebugUtils.getLogger().error("Processing a chat message throw an exception", e);
+            }
 
-            KiloEssentials.getLogger().error("Processing a chat message throw an exception", e);
+            sender.getCommandSource().sendError(text);
         }
     }
 
@@ -107,12 +108,10 @@ public final class ServerChat {
             processWords = KiloConfig.messages().censorList().censorPrivateChannels;
         }
 
-        message.setMessage(message.getFormattedMessage(), KiloEssentials.hasPermissionNode(sender.getCommandSource(), EssentialPermission.CHAT_COLOR));
-
         try {
             message.setMessage(
                     processWords ? processWords(sender, message.getOriginal()) : message.getOriginal(),
-                    true
+                    KiloEssentials.hasPermissionNode(sender.getCommandSource(), EssentialPermission.CHAT_COLOR)
             );
         } catch (Exception e) {
             return;
@@ -156,19 +155,21 @@ public final class ServerChat {
         }
 
         for (OnlineUser target : KiloServer.getServer().getUserManager().getOnlineUsersAsList()) {
-            String format = senderFormat.replace(" %PLAYER_NAME% ", target.getUsername());
-            if (!message.getOriginal().contains(format) || !KiloEssentials.hasPermissionNode(target.getCommandSource(), EssentialPermission.CHAT_GET_PINGED)) {
+            String nameFormat = senderFormat.replace("%PLAYER_NAME%", target.getUsername());
+            String nickFormat = senderFormat.replace("%PLAYER_NAME%", target.getDisplayName());
+            if ((!message.getOriginal().contains(nameFormat) && !message.getOriginal().contains(nickFormat)) || !KiloEssentials.hasPermissionNode(target.getCommandSource(), EssentialPermission.CHAT_GET_PINGED)) {
                 continue;
             }
 
             boolean canPing = target.getSetting(Settings.CHAT_CHANNEL) == channel;
             String formattedPing = canPing ? displayFormat : pingFailedDisplayFormat;
+            String format = message.getOriginal().contains(nameFormat) ? nameFormat : nickFormat;
 
             message.setMessage(
                     message.getFormattedMessage().replaceAll(
                             format,
                             formattedPing.replaceAll("%PLAYER_DISPLAYNAME%", target.getFormattedDisplayName() + "&r")
-                    )
+                    ).replaceAll("%", "")
             );
 
             if (pingSoundEnabled && canPing) {
@@ -228,7 +229,7 @@ public final class ServerChat {
             }
         }
 
-        if  (!CommandUtils.isConsole(source)) {
+        if (!CommandUtils.isConsole(source)) {
             OnlineUser online = KiloServer.getServer().getOnlineUser(source.getPlayer());
             online.setLastMessageReceptionist(target);
             target.setLastMessageReceptionist(online);
@@ -280,7 +281,7 @@ public final class ServerChat {
 
         for (final OnlineServerUser user : KiloServer.getServer().getUserManager().getOnlineUsers().values()) {
             if (user.getSetting(Settings.SOCIAL_SPY) && !CommandUtils.areTheSame(source, user) && !CommandUtils.areTheSame(target, user)) {
-                KiloChat.sendMessageTo(user.asPlayer(), new LiteralText(new TextMessage(toSpy, true).getFormattedMessage()).formatted(Formatting.GRAY));
+                user.sendMessage(new TextMessage(toSpy, true).toComponent().formatted(Formatting.GRAY));
             }
         }
 
@@ -290,7 +291,7 @@ public final class ServerChat {
     public static void sendCommandSpy(final ServerCommandSource source, final String command) {
         String format = ServerChat.config.commandSpyFormat;
         String shortenedCommand = command.substring(0, Math.min(command.length(), COMMAND_MAX_LENGTH));
-        String toSpy = format.replace("%SOURCE%", source.getName()).replace("%COMMAND%",  shortenedCommand);
+        String toSpy = format.replace("%SOURCE%", source.getName()).replace("%COMMAND%", shortenedCommand);
         MutableText text = Texter.newText(toSpy).formatted(Formatting.GRAY);
 
         if (command.length() > COMMAND_MAX_LENGTH) {
@@ -310,6 +311,14 @@ public final class ServerChat {
         for (OnlineUser user : KiloServer.getServer().getUserManager().getOnlineUsersAsList()) {
             if (user.hasPermission(permission)) {
                 user.sendMessage(message);
+            }
+        }
+    }
+
+    public static void sendLangMessage(EssentialPermission permission, String key, Object... objects) {
+        for (OnlineUser user : KiloServer.getServer().getUserManager().getOnlineUsersAsList()) {
+            if (user.hasPermission(permission)) {
+                user.sendLangMessage(key, objects);
             }
         }
     }
@@ -383,20 +392,15 @@ public final class ServerChat {
         return text;
     }
 
-    private static final SimpleCommandExceptionType CANT_MESSAGE_EXCEPTION = new  SimpleCommandExceptionType(LangText.getFormatter(true, "command.message.error"));
-
     public enum Channel {
         PUBLIC("public"),
         STAFF("staff"),
         BUILDER("builder");
 
         private String id;
+
         Channel(String id) {
             this.id = id;
-        }
-
-        public String getId() {
-            return this.id;
         }
 
         @Nullable
@@ -410,6 +414,10 @@ public final class ServerChat {
             return null;
         }
 
+        public String getId() {
+            return this.id;
+        }
+
         public void send(Text message) {
             switch (this) {
                 case PUBLIC:
@@ -420,6 +428,19 @@ public final class ServerChat {
                     break;
                 case BUILDER:
                     ServerChat.send(message, EssentialPermission.BUILDER);
+                    break;
+            }
+        }
+        public void sendLangMessage(String key, Object... objects) {
+            switch (this) {
+                case PUBLIC:
+                    KiloChat.broadCastLang(key, objects);
+                    break;
+                case STAFF:
+                    ServerChat.sendLangMessage(EssentialPermission.STAFF, key, objects);
+                    break;
+                case BUILDER:
+                    ServerChat.sendLangMessage(EssentialPermission.BUILDER, key, objects);
                     break;
             }
         }

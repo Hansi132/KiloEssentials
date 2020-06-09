@@ -23,8 +23,9 @@ public class VersionCommand extends EssentialCommand {
 
         KiloChat.sendLangMessageTo(ctx.getSource(), "command.info.version",
                 ModConstants.getVersionInt(),
-                ModConstants.getVersionNick(),
+                ModConstants.getBuild(),
                 ModConstants.getBuildType(),
+                ModConstants.getVersionNick(),
                 ModConstants.getGitHash(),
                 ModConstants.getGitBranch(),
                 ModConstants.getLoaderVersion(),
@@ -32,7 +33,6 @@ public class VersionCommand extends EssentialCommand {
                 ModConstants.getMinecraftVersion(),
                 gameVersion.isStable() ? "release" : "snapshot",
                 gameVersion.getReleaseTarget(),
-                gameVersion.getWorldVersion(),
                 essentials.getPermissionUtil().toString()
         );
 

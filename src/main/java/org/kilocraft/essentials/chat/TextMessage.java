@@ -2,11 +2,11 @@ package org.kilocraft.essentials.chat;
 
 import net.minecraft.text.LiteralText;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
 import org.kilocraft.essentials.api.text.TextFormat;
 import org.kilocraft.essentials.api.user.OnlineUser;
 import org.kilocraft.essentials.api.user.User;
 import org.kilocraft.essentials.config.ConfigVariableFactory;
+import org.kilocraft.essentials.util.text.Texter;
 
 public class TextMessage {
     private String original;
@@ -57,11 +57,11 @@ public class TextMessage {
     }
 
     public LiteralText toText() {
-        return new LiteralText(this.formatted);
+        return (LiteralText) Texter.newRawText(this.formatted);
     }
 
     public MutableText toComponent() {
-        return toText();
+        return this.toText();
     }
 
     private void formatMessage() {

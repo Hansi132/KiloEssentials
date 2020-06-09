@@ -1,5 +1,7 @@
 package org.kilocraft.essentials;
 
+import org.kilocraft.essentials.util.PermissionUtil;
+
 public enum EssentialPermission {
     STAFF("staff"),
     BUILDER("builder"),
@@ -29,22 +31,23 @@ public enum EssentialPermission {
     MAGIC_PARTICLES_ADVANCED("magicparticles.advanced"),
     SIT_SELF("sit.self"),
     SIT_OTHERS("sit.others"),
-    IGNORE_COMMAND_EVENTS("ignore_command_events"),
-    ;
+    IGNORE_COMMAND_EVENTS("ignore_command_events");
 
-    private String node;
+    private final String node;
+
     EssentialPermission(String node) {
         this.node = node;
     }
 
     public String getNode() {
-        return KiloEssentialsImpl.PERMISSION_PREFIX + this.node;
+        return PermissionUtil.PERMISSION_PREFIX + this.node;
     }
 
     public static EssentialPermission byName(String name) {
         for (EssentialPermission value : EssentialPermission.values()) {
-            if (value.node.equals(name.toUpperCase()))
+            if (value.node.equals(name.toUpperCase())) {
                 return value;
+            }
         }
 
         return null;

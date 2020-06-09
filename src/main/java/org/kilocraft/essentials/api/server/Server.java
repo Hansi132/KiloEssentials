@@ -10,8 +10,11 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.Text;
+import net.minecraft.util.registry.RegistryKey;
+import net.minecraft.world.World;
 import net.minecraft.world.dimension.DimensionType;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.kilocraft.essentials.api.event.Event;
 import org.kilocraft.essentials.api.event.EventHandler;
 import org.kilocraft.essentials.api.event.EventRegistry;
@@ -19,6 +22,7 @@ import org.kilocraft.essentials.api.user.CommandSourceUser;
 import org.kilocraft.essentials.api.user.OnlineUser;
 import org.kilocraft.essentials.api.user.UserManager;
 import org.kilocraft.essentials.servermeta.ServerMetaManager;
+import org.kilocraft.essentials.util.Action;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -31,7 +35,7 @@ public interface Server {
      *
      * @return instance of MinecraftServer
      */
-    MinecraftServer getVanillaServer();
+    MinecraftServer getMinecraftServer();
 
     /**
      * Gets the PlayerManager of the VanillaServer
@@ -42,9 +46,21 @@ public interface Server {
     PlayerManager getPlayerManager();
 
     /**
-     * Reloads the Server
+     * Reloads the server
+     * @param fallback the action to perform if the execution fails
      */
-    void reload();
+    void reload(Action<Throwable> fallback);
+
+    /**
+     * Reloads the MinecraftServer
+     * @param fallback the action to perform if the execution fails
+     */
+    void reloadMinecraftServer(Action<Throwable> fallback);
+
+    /**
+     * Reloads kiloessentials data
+     */
+    void reloadKiloEssentials();
 
     /**
      * Gets the KiloServer's UserManager
@@ -130,10 +146,10 @@ public interface Server {
     /**
      * Gets a world
      *
-     * @param type Dimension
+     * @param key the World Registry Key
      * @return ServerWorld
      */
-    ServerWorld getWorld(DimensionType type);
+    ServerWorld getWorld(RegistryKey<World> key);
 
     /**
      * Checks if we are running inside the Server's main thread
@@ -147,7 +163,7 @@ public interface Server {
      *
      * @param e event to register
      */
-    void registerEvent(EventHandler e);
+    void registerEvent(final EventHandler<?> e);
 
     /**
      * Gets the EventRegistry
@@ -164,7 +180,7 @@ public interface Server {
      * @param e   Event to trigger.
      * @return The event instance, with any modifications applied by event handlers
      */
-    <E extends Event> E triggerEvent(E e);
+    <E extends Event> E triggerEvent(@NotNull final E e);
 
     /**
      * Gets a player by name
