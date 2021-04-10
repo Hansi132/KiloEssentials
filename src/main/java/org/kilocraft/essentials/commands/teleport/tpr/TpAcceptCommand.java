@@ -5,10 +5,9 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.server.command.ServerCommandSource;
-import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.command.EssentialCommand;
 import org.kilocraft.essentials.api.user.OnlineUser;
-import org.kilocraft.essentials.user.ServerUserManager;
+import org.kilocraft.essentials.api.util.ScheduledExecutionThread;
 import org.kilocraft.essentials.util.player.UserUtils;
 
 public class TpAcceptCommand extends EssentialCommand {
@@ -35,10 +34,14 @@ public class TpAcceptCommand extends EssentialCommand {
 
         boolean toSender = UserUtils.TpaRequests.useRequestAndGetType(sender);
         OnlineUser tpTarget = toSender ? sender : victim;
-        (toSender ? victim : sender).teleport(tpTarget);
-
-        victim.sendLangMessage("command.tpa.accepted", sender.getFormattedDisplayName());
         sender.sendLangMessage("command.tpa.accepted.announce", victim.getFormattedDisplayName());
+        victim.sendLangMessage("command.tpa.accepted", sender.getFormattedDisplayName());
+        ScheduledExecutionThread.teleport(toSender ? victim : sender, toSender ? sender : victim, () -> {
+            if ((toSender ? victim : sender).isOnline() && tpTarget.isOnline()) {
+                (toSender ? victim : sender).teleport(tpTarget);
+            }
+        },5);
+
 
         return SUCCESS;
     }

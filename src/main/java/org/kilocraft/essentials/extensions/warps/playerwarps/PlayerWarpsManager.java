@@ -1,28 +1,26 @@
 package org.kilocraft.essentials.extensions.warps.playerwarps;
 
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtCompound;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.kilocraft.essentials.CommandPermission;
 import org.kilocraft.essentials.KiloCommands;
 import org.kilocraft.essentials.api.KiloEssentials;
-import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.NBTStorage;
-import org.kilocraft.essentials.api.feature.RelodableConfigurableFeature;
+import org.kilocraft.essentials.api.feature.ReloadableConfigurableFeature;
 import org.kilocraft.essentials.config.KiloConfig;
 import org.kilocraft.essentials.extensions.warps.playerwarps.commands.PlayerWarpCommand;
 import org.kilocraft.essentials.extensions.warps.playerwarps.commands.PlayerWarpsCommand;
 import org.kilocraft.essentials.provided.KiloFile;
 import org.kilocraft.essentials.util.nbt.NBTStorageUtil;
-import org.kilocraft.essentials.util.nbt.NBTTypes;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
-public class PlayerWarpsManager implements RelodableConfigurableFeature, NBTStorage {
+public class PlayerWarpsManager implements ReloadableConfigurableFeature, NBTStorage {
     private static boolean enabled = false;
     private static final List<UUID> warpOwners = new ArrayList<>();
     private static final ArrayList<String> byName = new ArrayList<>();
@@ -43,8 +41,6 @@ public class PlayerWarpsManager implements RelodableConfigurableFeature, NBTStor
         KiloCommands.getInstance().register(
                 new PlayerWarpsCommand("playerwarps", CommandPermission.PLAYER_WARPS, new String[]{"pwarps"})
         );
-
-        load();
         return true;
     }
 
@@ -97,14 +93,7 @@ public class PlayerWarpsManager implements RelodableConfigurableFeature, NBTStor
     }
 
     public static List<PlayerWarp> getWarps(UUID owner) {
-        final List<PlayerWarp> list = new ArrayList<>();
-        for (PlayerWarp warp : warps) {
-            if (warp.getOwner().equals(owner)) {
-                list.add(warp);
-            }
-        }
-
-        return list;
+        return warps.stream().filter((warp) -> warp.getOwner().equals(owner)).collect(Collectors.toList());
     }
 
     public static List<UUID> getOwners() {
@@ -121,8 +110,8 @@ public class PlayerWarpsManager implements RelodableConfigurableFeature, NBTStor
     }
 
     @Override
-    public CompoundTag serialize() {
-        CompoundTag tag = new CompoundTag();
+    public NbtCompound serialize() {
+        NbtCompound tag = new NbtCompound();
         for (PlayerWarp warp : warps) {
             tag.put(warp.getName(), warp.toTag());
         }
@@ -131,13 +120,13 @@ public class PlayerWarpsManager implements RelodableConfigurableFeature, NBTStor
     }
 
     @Override
-    public void deserialize(@NotNull CompoundTag compoundTag) {
+    public void deserialize(@NotNull NbtCompound NbtCompound) {
         warps.clear();
         byName.clear();
         warpOwners.clear();
 
-        for (String key : compoundTag.getKeys()) {
-            PlayerWarp warp = new PlayerWarp(key, compoundTag.getCompound(key));
+        for (String key : NbtCompound.getKeys()) {
+            PlayerWarp warp = new PlayerWarp(key, NbtCompound.getCompound(key));
             warpOwners.add(warp.getOwner());
             warps.add(warp);
             byName.add(key);

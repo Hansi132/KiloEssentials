@@ -2,7 +2,6 @@ package org.kilocraft.essentials.commands;
 
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
-
 import org.kilocraft.essentials.mixin.CommandManagerMixin;
 
 import java.util.ArrayList;
@@ -31,6 +30,7 @@ public class LiteralCommandModified {
         add("ke_ban");
         add("ke_kick");
         add("ke_gamerule");
+        add("ke_ban-ip");
     }};
 
     private static List<String> vanillaCommandsToRename = new ArrayList<String>(){{

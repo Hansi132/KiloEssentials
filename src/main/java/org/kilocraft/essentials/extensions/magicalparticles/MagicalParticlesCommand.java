@@ -7,7 +7,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.minecraft.server.command.CommandSource;
+import net.minecraft.command.CommandSource;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.LiteralText;
@@ -16,22 +16,21 @@ import net.minecraft.util.Identifier;
 import org.kilocraft.essentials.EssentialPermission;
 import org.kilocraft.essentials.KiloCommands;
 import org.kilocraft.essentials.api.KiloEssentials;
-import org.kilocraft.essentials.api.KiloServer;
+import org.kilocraft.essentials.api.command.EssentialCommand;
+import org.kilocraft.essentials.api.user.CommandSourceUser;
 import org.kilocraft.essentials.api.user.OnlineUser;
 import org.kilocraft.essentials.api.world.ParticleAnimation;
-import org.kilocraft.essentials.chat.LangText;
-import org.kilocraft.essentials.api.command.EssentialCommand;
-import org.kilocraft.essentials.chat.KiloChat;
-import org.kilocraft.essentials.util.text.Texter;
+import org.kilocraft.essentials.chat.StringText;
 import org.kilocraft.essentials.util.messages.nodes.ExceptionMessageNode;
+import org.kilocraft.essentials.util.text.Texter;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-import static net.minecraft.command.arguments.IdentifierArgumentType.getIdentifier;
-import static net.minecraft.command.arguments.IdentifierArgumentType.identifier;
+import static net.minecraft.command.argument.IdentifierArgumentType.getIdentifier;
+import static net.minecraft.command.argument.IdentifierArgumentType.identifier;
 import static org.kilocraft.essentials.extensions.magicalparticles.ParticleAnimationManager.*;
 
 public class MagicalParticlesCommand extends EssentialCommand {
@@ -61,6 +60,7 @@ public class MagicalParticlesCommand extends EssentialCommand {
 
     private int set(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayer();
+        OnlineUser user = getOnlineUser(ctx);
         boolean silent = false;
         Identifier identifier = getIdentifier(ctx, "animation");
 
@@ -78,17 +78,17 @@ public class MagicalParticlesCommand extends EssentialCommand {
         }
 
         if (!canUse(this.getOnlineUser(player), identifier)) {
-            KiloChat.sendMessageTo(player, KiloCommands.getPermissionError("?"));
+            user.sendPermissionError("?");
             return FAILED;
         }
 
         addPlayer(player.getUuid(), identifier);
-        player.sendMessage(LangText.getFormatter(true, "command.magicalparticles.set", getAnimationName(identifier)), silent);
+        player.sendMessage(StringText.of(true, "command.magicalparticles.set", getAnimationName(identifier)), silent);
         return SUCCESS;
     }
 
-    private int list(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
-        ServerPlayerEntity player = ctx.getSource().getPlayer();
+    private int list(CommandContext<ServerCommandSource> ctx) {
+        OnlineUser user = getCommandSource(ctx);
         Texter.ListStyle text = Texter.ListStyle.of(
                 "Particle Animations", Formatting.GOLD, Formatting.DARK_GRAY, Formatting.WHITE, Formatting.GRAY
         );
@@ -110,13 +110,14 @@ public class MagicalParticlesCommand extends EssentialCommand {
                 Texter.Events.onClickRun("/mp set " + id.toString() + "--s")
         ));
 
-        KiloChat.sendMessageTo(player, text.setSize(map.size()).build());
+        user.sendMessage(text.setSize(map.size()).build());
         return SUCCESS;
     }
 
     private int disable(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayer();
-        KiloChat.sendLangMessageTo(player, "command.magicalparticles.disabled");
+        CommandSourceUser user = getCommandSource(ctx);
+        user.sendLangMessage("command.magicalparticles.disabled");
         removePlayer(player.getUuid());
         return SUCCESS;
     }

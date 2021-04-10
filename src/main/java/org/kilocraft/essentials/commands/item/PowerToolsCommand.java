@@ -8,11 +8,11 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.brigadier.tree.LiteralCommandNode;
+import net.minecraft.command.CommandSource;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.StringTag;
-import net.minecraft.server.command.CommandSource;
+import net.minecraft.nbt.NbtCompound;
+import net.minecraft.nbt.NbtList;
+import net.minecraft.nbt.NbtString;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.LiteralText;
@@ -20,8 +20,9 @@ import net.minecraft.text.MutableText;
 import net.minecraft.util.Formatting;
 import org.kilocraft.essentials.CommandPermission;
 import org.kilocraft.essentials.KiloCommands;
-import org.kilocraft.essentials.api.command.ArgumentCompletions;
-import org.kilocraft.essentials.chat.KiloChat;
+import org.kilocraft.essentials.api.KiloServer;
+import org.kilocraft.essentials.api.command.ArgumentSuggestions;
+import org.kilocraft.essentials.api.user.CommandSourceUser;
 
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -48,13 +49,13 @@ public class PowerToolsCommand {
 
         LiteralArgumentBuilder<ServerCommandSource> removeArgument = literal("remove");
         RequiredArgumentBuilder<ServerCommandSource, Integer> removeLineArgument = argument("line", integer(1, 10))
-                .suggests(ArgumentCompletions::noSuggestions)
+                .suggests(ArgumentSuggestions::noSuggestions)
                 .executes(PowerToolsCommand::executeRemove);
 
         LiteralArgumentBuilder<ServerCommandSource> setArgument = literal("set");
 
         RequiredArgumentBuilder<ServerCommandSource, Integer> lineArgument = argument("line", integer(1, 10))
-                .suggests(ArgumentCompletions::noSuggestions);
+                .suggests(ArgumentSuggestions::noSuggestions);
 
         RequiredArgumentBuilder<ServerCommandSource, String> textArgument = argument("command", greedyString())
                 .suggests(PowerToolsCommand::commandSuggestions)
@@ -74,7 +75,7 @@ public class PowerToolsCommand {
         ItemStack item = context.getSource().getPlayer().getMainHandStack();
 
         if (item.isEmpty() || !item.hasTag() || item.getTag() == null || !item.getTag().contains("NBTCommands"))
-            return ArgumentCompletions.noSuggestions(context, builder);
+            return ArgumentSuggestions.noSuggestions(context, builder);
 
         int inputLine = 0;
 
@@ -86,7 +87,7 @@ public class PowerToolsCommand {
             } catch (NumberFormatException ignored) { }
         }
 
-        ListTag commands = item.getTag().getList("NBTCommands", 8);
+        NbtList commands = item.getTag().getList("NBTCommands", 8);
         String[] strings = {commands.getString(inputLine)};
         return CommandSource.suggestMatching(strings, builder);
     }
@@ -95,63 +96,67 @@ public class PowerToolsCommand {
         int inputLine = getInteger(ctx, "line") - 1;
         ServerPlayerEntity player = ctx.getSource().getPlayer();
         ItemStack item = player.getMainHandStack();
+        CommandSourceUser user = KiloServer.getServer().getCommandSourceUser(ctx.getSource());
 
         if (item.isEmpty()) {
-            KiloChat.sendLangMessageTo(ctx.getSource(), "command.item.invalid_item");
+            user.sendLangMessage("command.item.invalid_item");
             return -1;
         }
 
         if (!item.hasTag() || item.getTag() == null || !item.getTag().contains("NBTCommands")) {
-            KiloChat.sendLangMessageTo(player, "command.item.nothing_to_reset");
+            user.sendLangMessage("command.item.nothing_to_reset");
             return -1;
         }
 
-        ListTag lore = item.getTag().getList("NBTCommands", 8);
+        NbtList lore = item.getTag().getList("NBTCommands", 8);
 
         if (inputLine >= lore.size()) {
-            KiloChat.sendLangMessageTo(player, "command.item.nothing_to_reset");
+            user.sendLangMessage("command.item.nothing_to_reset");
             return -1;
         }
 
         lore.remove(inputLine);
 
-        KiloChat.sendLangMessageTo(player, "command.item.command.remove", inputLine + 1);
+        user.sendLangMessage("command.item.command.remove", inputLine + 1);
         return 1;
     }
 
     private static int executeReset(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ItemStack item = ctx.getSource().getPlayer().getMainHandStack();
+        CommandSourceUser user = KiloServer.getServer().getCommandSourceUser(ctx.getSource());
 
         if (item.isEmpty()) {
-            KiloChat.sendLangMessageTo(ctx.getSource(), "command.item.invalid_item");
+            user.sendLangMessage("command.item.invalid_item");
             return -1;
         }
 
         if (item.getTag() == null) {
-            KiloChat.sendLangMessageTo(ctx.getSource(), "command.item.nothing_to_reset");
+            user.sendLangMessage("command.item.nothing_to_reset");
             return -1;
         }
 
         Objects.requireNonNull(item.getTag()).remove("NBTCommands");
-        KiloChat.sendLangMessageTo(ctx.getSource(), "command.item.reset", "command", "not-set");
+        user.sendLangMessage("command.item.reset", "command", "not-set");
         return 1;
     }
 
     private static int executeList(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
         ServerPlayerEntity player = ctx.getSource().getPlayer();
         ItemStack item = player.getMainHandStack();
+        CommandSourceUser user = KiloServer.getServer().getCommandSourceUser(ctx.getSource());
 
         if (item.isEmpty()) {
-            KiloChat.sendLangMessageTo(player, "general.no_item");
+
+            user.sendLangMessage("general.no_item");
             return -1;
         }
 
         if (!item.hasTag() || item.getTag() == null || !item.getTag().contains("NBTCommands")) {
-            KiloChat.sendLangMessageTo(player, "command.item.command.no_commands");
+            user.sendLangMessage("command.item.command.no_commands");
             return -1;
         }
 
-        ListTag commands = item.getTag().getList("NBTCommands", 8);
+        NbtList commands = item.getTag().getList("NBTCommands", 8);
 
         MutableText text = new LiteralText("PowerTool Commands:").formatted(Formatting.GOLD);
 
@@ -163,7 +168,7 @@ public class PowerToolsCommand {
                     .append(new LiteralText(commands.getString(i)).formatted(Formatting.WHITE));
         }
 
-        KiloChat.sendMessageTo(ctx.getSource(), text);
+        user.sendMessage(text);
         return 1;
     }
 
@@ -171,27 +176,28 @@ public class PowerToolsCommand {
         ServerPlayerEntity player = ctx.getSource().getPlayer();
         String inputString = getString(ctx, "command").replaceFirst("/", "");
         ItemStack item = player.getMainHandStack();
+        CommandSourceUser user = KiloServer.getServer().getCommandSourceUser(ctx.getSource());
 
         if (item.isEmpty()) {
-            KiloChat.sendLangMessageTo(player, "command.item.invalid_item");
+            user.sendLangMessage("command.item.invalid_item");
             return -1;
         }
 
-        CompoundTag itemTag = item.getTag();
+        NbtCompound itemTag = item.getTag();
 
         if (!item.hasTag()) {
-            itemTag = new CompoundTag();
+            itemTag = new NbtCompound();
         }
 
         if (!itemTag.contains("NBTCommands")) {
-            itemTag.put("NBTCommands", new CompoundTag());
+            itemTag.put("NBTCommands", new NbtCompound());
         }
 
-        ListTag command = itemTag.getList("NBTCommands", 8);
+        NbtList command = itemTag.getList("NBTCommands", 8);
         int inputLine = getInteger(ctx, "line") - 1;
 
         if (command == null) {
-            command = new ListTag();
+            command = new NbtList();
         }
 
         if (inputLine > command.size() - 1) {
@@ -199,15 +205,15 @@ public class PowerToolsCommand {
                 if (!command.getString(i).isEmpty())
                     continue;
 
-                command.add(StringTag.of(inputString));
+                command.add(NbtString.of(inputString));
             }
         }
 
-        command.set(inputLine, StringTag.of(inputString));
+        command.set(inputLine, NbtString.of(inputString));
         itemTag.put("NBTCommands", command);
         item.setTag(itemTag);
 
-        KiloChat.sendLangMessageTo(player, "command.item.set", "command", inputLine + 1, "&e:\n &7" + inputLine);
+        user.sendLangMessage( "command.item.set", "command", inputLine + 1, "&e:\n &7" + inputLine);
         return 1;
     }
 }

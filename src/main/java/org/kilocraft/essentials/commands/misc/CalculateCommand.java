@@ -7,14 +7,10 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.LiteralText;
-import net.minecraft.util.Formatting;
 import org.kilocraft.essentials.CommandPermission;
-import org.kilocraft.essentials.api.command.ArgumentCompletions;
+import org.kilocraft.essentials.api.command.ArgumentSuggestions;
 import org.kilocraft.essentials.api.command.EssentialCommand;
 import org.kilocraft.essentials.api.user.CommandSourceUser;
-import org.kilocraft.essentials.api.util.StringUtils;
-import org.kilocraft.essentials.util.text.Texter;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -25,8 +21,6 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
-import static org.kilocraft.essentials.util.text.Texter.exceptionToText;
 
 public class CalculateCommand extends EssentialCommand {
     public CalculateCommand() {
@@ -44,14 +38,18 @@ public class CalculateCommand extends EssentialCommand {
     }
 
     private int execute(CommandContext<ServerCommandSource> ctx) {
-        CommandSourceUser src = this.getServerUser(ctx);
+        CommandSourceUser src = this.getCommandSource(ctx);
         String input = StringArgumentType.getString(ctx, "input");
 //        StringUtils.Calculator calculator = new StringUtils.Calculator(input);
         ScriptEngineManager mgr = new ScriptEngineManager();
         ScriptEngine engine = mgr.getEngineByName("JavaScript");
         Double result = null;
         try {
-            result = Double.valueOf(String.valueOf(engine.eval(input)));
+            if (input.matches("[\\d+-\\/*()%]+")) {
+                result = Double.valueOf(String.valueOf(engine.eval(input)));
+            } else {
+                throw new ScriptException("");
+            }
         } catch (ScriptException e) {
             src.sendLangError("command.calculate.syntax");
             return 1;
@@ -70,7 +68,7 @@ public class CalculateCommand extends EssentialCommand {
 //            return FAILED;
 //        }
         DecimalFormat df = new DecimalFormat("#.##");
-        src.sendLangMessage("command.calculate.result", input, String.valueOf(df.format(result)));
+        src.sendLangMessage("command.calculate.result", input, df.format(result));
         return result.intValue();
     }
 
@@ -79,8 +77,8 @@ public class CalculateCommand extends EssentialCommand {
 //        List<String> commands = Arrays.asList(super.getAlias());
         List<String> commands = new LinkedList<String>(Arrays.asList(super.getAlias()));
         commands.add(super.getLabel());
-        for(String command : commands){
-            if(ctx.getInput().matches("\\/" + command + " [(]*[0-9]+([+][(]*[0-9]+[)]*)*")){
+        for (String command : commands) {
+            if (ctx.getInput().matches("\\/" + command + " [(]*[0-9]+([+][(]*[0-9]+[)]*)*")) {
                 operations.add("+");
                 operations.add("-");
                 operations.add("*");
@@ -93,6 +91,6 @@ public class CalculateCommand extends EssentialCommand {
         operations.add(")");
 
 
-        return ArgumentCompletions.suggestAtCursor(operations, ctx);
+        return ArgumentSuggestions.suggestAtCursor(operations, ctx);
     }
 }

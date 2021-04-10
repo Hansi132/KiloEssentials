@@ -8,20 +8,17 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.tree.ArgumentCommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 import net.minecraft.command.EntitySelector;
-import net.minecraft.command.arguments.EntityArgumentType;
+import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.command.ServerCommandSource;
-import org.kilocraft.essentials.CommandPermission;
-import org.kilocraft.essentials.KiloCommands;
-import org.kilocraft.essentials.api.KiloServer;
-import org.kilocraft.essentials.api.command.ArgumentCompletions;
+import org.kilocraft.essentials.api.command.ArgumentSuggestions;
 import org.kilocraft.essentials.api.command.EssentialCommand;
 import org.kilocraft.essentials.commands.CommandUtils;
 
 import java.util.Collection;
 
-import static net.minecraft.command.arguments.EntityArgumentType.getPlayer;
-import static net.minecraft.command.arguments.EntityArgumentType.player;
+import static net.minecraft.command.argument.EntityArgumentType.getPlayer;
+import static net.minecraft.command.argument.EntityArgumentType.player;
 
 public class SudoCommand extends EssentialCommand {
 
@@ -33,7 +30,7 @@ public class SudoCommand extends EssentialCommand {
     @Override
     public void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         ArgumentCommandNode<ServerCommandSource, EntitySelector> selectorArg = argument("target", player())
-                .suggests(ArgumentCompletions::allPlayers)
+                .suggests(ArgumentSuggestions::allPlayers)
                 .redirect(dispatcher.getRoot(), redirectModifier())
                 .build();
 

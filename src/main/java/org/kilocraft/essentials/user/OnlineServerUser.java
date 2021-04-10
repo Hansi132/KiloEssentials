@@ -1,33 +1,38 @@
 package org.kilocraft.essentials.user;
 
 import com.mojang.authlib.GameProfile;
-import net.minecraft.nbt.CompoundTag;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ChunkTicketType;
 import net.minecraft.stat.Stats;
-import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.kilocraft.essentials.CommandPermission;
 import org.kilocraft.essentials.EssentialPermission;
+import org.kilocraft.essentials.Format;
 import org.kilocraft.essentials.KiloCommands;
 import org.kilocraft.essentials.api.KiloEssentials;
 import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.ModConstants;
+import org.kilocraft.essentials.api.text.ComponentText;
 import org.kilocraft.essentials.api.user.OnlineUser;
+import org.kilocraft.essentials.api.util.StringUtils;
 import org.kilocraft.essentials.api.world.location.Location;
 import org.kilocraft.essentials.api.world.location.Vec3dLocation;
-import org.kilocraft.essentials.chat.TextMessage;
 import org.kilocraft.essentials.chat.KiloChat;
-import org.kilocraft.essentials.config.KiloConfig;
 import org.kilocraft.essentials.extensions.playtimecommands.PlaytimeCommands;
-import org.kilocraft.essentials.user.setting.Settings;
-import org.kilocraft.essentials.util.GlobalUtils;
+import org.kilocraft.essentials.servermeta.PlayerListMeta;
+import org.kilocraft.essentials.user.preference.Preferences;
+import org.kilocraft.essentials.util.PermissionUtil;
 import org.kilocraft.essentials.util.messages.nodes.ExceptionMessageNode;
 
 import java.net.SocketAddress;
@@ -63,7 +68,7 @@ public class OnlineServerUser extends ServerUser implements OnlineUser {
     @Override
     public void teleport(@NotNull final Location loc, final boolean sendTicket) {
         if (sendTicket) {
-            loc.getWorld().getChunkManager().addTicket(ChunkTicketType.POST_TELEPORT, loc.toChunkPos(), 1, this.asPlayer().getEntityId());
+            loc.getWorld().getChunkManager().addTicket(ChunkTicketType.POST_TELEPORT, loc.toChunkPos(), 1, this.asPlayer().getId());
         }
 
         this.asPlayer().teleport(loc.getWorld(), loc.getX(), loc.getY(), loc.getZ(), loc.getRotation().getYaw(), loc.getRotation().getPitch());
@@ -86,23 +91,18 @@ public class OnlineServerUser extends ServerUser implements OnlineUser {
 
     @Override
     public void sendMessage(final String message) {
-        KiloChat.sendMessageTo(this.asPlayer(), new TextMessage(message, true));
+        this.sendMessage(ComponentText.of(message));
     }
 
     @Override
     public int sendError(final String message) {
-        KiloChat.sendMessageTo(this.asPlayer(), ((MutableText)new TextMessage("&c" + message, true).toText()).formatted(Formatting.RED));
+        this.sendMessage(ComponentText.of(message).color(NamedTextColor.RED));
         return 0;
     }
 
     @Override
-    public void sendError(TextMessage message) {
-
-    }
-
-    @Override
-    public void sendError(Text text) {
-        KiloChat.sendMessageTo(this.asPlayer(), ((MutableText)text).formatted(Formatting.RED));
+    public void sendPermissionError(@NotNull String hover) {
+        this.sendMessage(ComponentText.of(KiloChat.getFormattedLang("command.exception.permission")).style(style -> style.hoverEvent(HoverEvent.showText(Component.text(hover)))));
     }
 
     @Override
@@ -113,9 +113,7 @@ public class OnlineServerUser extends ServerUser implements OnlineUser {
     @Override
     public int sendError(final ExceptionMessageNode node, final Object... objects) {
         final String message = ModConstants.getMessageUtil().fromExceptionNode(node);
-        KiloChat.sendMessageTo(this.asPlayer(), ((MutableText)new TextMessage(
-                objects != null ? String.format(message, objects) : message, true)
-                .toText()).formatted(Formatting.RED));
+        this.sendMessage("<red>" + (objects != null ? String.format(message, objects) : message));
         return -1;
     }
 
@@ -125,19 +123,13 @@ public class OnlineServerUser extends ServerUser implements OnlineUser {
     }
 
     @Override
-    public void sendMessage(final TextMessage textMessage) {
-        KiloChat.sendMessageTo(this.asPlayer(), textMessage);
+    public void sendMessage(@NotNull Component component) {
+        this.sendMessage(ComponentText.toText(component));
     }
 
     @Override
     public void sendLangMessage(final @NotNull String key, final Object... objects) {
-        KiloChat.sendLangMessageTo(this.asPlayer(), key, objects);
-    }
-
-    @Override
-    public void sendConfigMessage(final String key, final Object... objects) {
-        final String message = KiloConfig.getMessage(key, objects);
-        this.sendMessage(new TextMessage(message, true));
+        this.sendMessage(KiloChat.getFormattedLang(key, objects));
     }
 
     @Override
@@ -183,7 +175,7 @@ public class OnlineServerUser extends ServerUser implements OnlineUser {
     }
 
     @Override
-    public void fromTag(@NotNull final CompoundTag tag) {
+    public void fromTag(@NotNull final NbtCompound tag) {
         // All the other serialization logic is handled.
         super.fromTag(tag);
     }
@@ -195,15 +187,14 @@ public class OnlineServerUser extends ServerUser implements OnlineUser {
 
     @Override
     public void setFlight(final boolean set) {
-        super.getSettings().set(Settings.CAN_FLY, true);
-        this.asPlayer().abilities.allowFlying = set;
-        this.asPlayer().abilities.flying = set;
+        this.asPlayer().getAbilities().allowFlying = set;
+        this.asPlayer().getAbilities().flying = set;
         this.asPlayer().sendAbilitiesUpdate();
     }
 
     @Override
     public void setGameMode(GameMode mode) {
-        this.asPlayer().setGameMode(mode);
+        this.asPlayer().changeGameMode(mode);
     }
 
     @Override
@@ -225,15 +216,25 @@ public class OnlineServerUser extends ServerUser implements OnlineUser {
         return super.lastSocketAddress;
     }
 
+    @Nullable
+    @Override
+    public String getLastIp() {
+        String last = this.getLastSocketAddress();
+        if (last == null) {
+            return null;
+        }
+
+        return StringUtils.socketAddressToIp(this.getLastSocketAddress());
+    }
+
     @Deprecated
     @Override
     public void saveData() {
     }
 
     public void onJoined() {
-        this.setFlight(super.getSetting(Settings.CAN_FLY));
 
-        SocketAddress socketAddress = GlobalUtils.getSocketAddress(super.uuid);
+        SocketAddress socketAddress = this.getConnection().getAddress();
         if (socketAddress != null) {
             lastSocketAddress = socketAddress.toString().replaceFirst("/", "");
         }
@@ -241,13 +242,13 @@ public class OnlineServerUser extends ServerUser implements OnlineUser {
         super.messageCoolDown = 0;
         super.systemMessageCoolDown = 0;
 
-        GameMode gameMode = super.getSetting(Settings.GAME_MODE);
-        if (gameMode == GameMode.NOT_SET) {
+        GameMode gameMode = super.getPreference(Preferences.GAME_MODE);
+        if (gameMode == null) {
             gameMode = this.asPlayer().interactionManager.getGameMode();
         }
 
         this.setGameMode(gameMode);
-        super.getSettings().set(Settings.GAME_MODE, gameMode);
+        super.getPreferences().set(Preferences.GAME_MODE, gameMode);
 
         if (ticksPlayed <= 0) {
             ticksPlayed = this.asPlayer().getStatHandler().getStat(Stats.CUSTOM.getOrCreateStat(Stats.PLAY_ONE_MINUTE));
@@ -259,6 +260,19 @@ public class OnlineServerUser extends ServerUser implements OnlineUser {
             isStaff = true;
         }
 
+        if (KiloCommands.hasPermission(this.getCommandSource(), CommandPermission.NICKNAME_SELF) || KiloCommands.hasPermission(this.getCommandSource(), CommandPermission.NICKNAME_OTHERS)) {
+            this.getPreference(Preferences.NICK).ifPresent(s -> {
+                try {
+                    this.setNickname(Format.validatePermission(this, s, PermissionUtil.COMMAND_PERMISSION_PREFIX + "nickname.formatting."));
+                } catch (CommandSyntaxException e) {
+                    this.clearNickname();
+                }
+            });
+        } else {
+            this.clearNickname();
+        }
+
+        PlayerListMeta.updateForAll();
     }
 
     public void onLeave() {

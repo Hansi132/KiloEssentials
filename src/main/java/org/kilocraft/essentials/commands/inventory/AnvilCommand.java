@@ -13,11 +13,10 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.TranslatableText;
 import org.kilocraft.essentials.CommandPermission;
 import org.kilocraft.essentials.api.command.EssentialCommand;
-import org.kilocraft.essentials.chat.KiloChat;
 
 public class AnvilCommand extends EssentialCommand {
     public AnvilCommand() {
-        super("anvil", CommandPermission.ANVIL, new String[]{"repair"});
+        super("anvil", CommandPermission.ANVIL);
     }
 
     public void register(CommandDispatcher<ServerCommandSource> dispatcher) {
@@ -26,11 +25,8 @@ public class AnvilCommand extends EssentialCommand {
 
     private int execute(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         ServerPlayerEntity player = context.getSource().getPlayer();
-
-        KiloChat.sendLangMessageTo(context.getSource(), "general.open_screen", "Anvil");
-
         player.openHandledScreen(new SimpleNamedScreenHandlerFactory(this::createMenu, new TranslatableText("container.repair")));
-        return 1;
+        return SUCCESS;
     }
 
     private ForgingScreenHandler createMenu(int syncId, PlayerInventory playerInventory, PlayerEntity playerEntity) {

@@ -6,7 +6,6 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.model.user.User;
 import net.luckperms.api.query.QueryOptions;
-import net.minecraft.SharedConstants;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.apache.logging.log4j.core.Logger;
@@ -14,24 +13,31 @@ import org.jetbrains.annotations.NotNull;
 import org.kilocraft.essentials.CommandPermission;
 import org.kilocraft.essentials.EssentialPermission;
 import org.kilocraft.essentials.api.KiloEssentials;
-import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.config.KiloConfig;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 public class PermissionUtil {
     private static final Logger logger = (Logger) KiloEssentials.getLogger();
     private static final List<String> pendingPermissions = new ArrayList<>();
     public static String COMMAND_PERMISSION_PREFIX = "kiloessentials.command.";
     public static String PERMISSION_PREFIX = "kiloessentials.";
-    private boolean present;
+    private final boolean present;
     private Manager manager;
 
     public PermissionUtil() {
-        logger.info("Setting up Permissions...");
-        this.manager = Manager.fromString(KiloConfig.main().permissionManager());
+        logger.info("Setting up permissions...");
+        String inputName = KiloConfig.main().permissionManager();
+        this.manager = Manager.fromString(inputName);
+
+        if (this.manager == Manager.NONE) {
+            logger.error("Invalid permission manager! \"{}\" is not a valid permission manager for KiloEssentials", inputName);
+            logger.info("Switching to vanilla permission system");
+            this.manager = Manager.VANILLA;
+        }
 
         if (manager == Manager.VANILLA) {
             this.present = false;
@@ -51,23 +57,19 @@ public class PermissionUtil {
 
         logger.info("Using {} as the Permission Manager", manager.getName());
 
-
         logger.info("Registered " + (CommandPermission.values().length + EssentialPermission.values().length) + " permission nodes.");
-    }
-
-    public boolean hasPermission(ServerCommandSource src, String permission, int opLevel) {
-        if (this.present) {
-            if (manager == Manager.LUCKPERMS) {
-                if(SharedConstants.isDevelopment) KiloServer.getLogger().info("Checking permission " + permission + "(result: " + fromLuckPerms(src, permission, opLevel) + ")");
-                return fromLuckPerms(src, permission, opLevel);
-            }
-        }
-
-        return src.hasPermissionLevel(opLevel);
     }
 
     public static void registerNode(final String node) {
         pendingPermissions.add(node);
+    }
+
+    public boolean hasPermission(ServerCommandSource src, String permission, int opLevel) {
+        if (this.present && this.manager == Manager.LUCKPERMS) {
+            return fromLuckPerms(src, permission, opLevel);
+        }
+
+        return fallbackPermissionCheck(src, opLevel);
     }
 
     private boolean fromLuckPerms(ServerCommandSource src, String perm, int op) {
@@ -85,7 +87,23 @@ public class PermissionUtil {
         } catch (CommandSyntaxException ignored) {
         }
 
-        return src.hasPermissionLevel(op);
+        return fallbackPermissionCheck(src, op);
+    }
+
+    public boolean hasPermission(UUID uuid, String perm) {
+        try {
+            if (this.present && this.manager == Manager.LUCKPERMS) {
+                LuckPerms luckPerms = LuckPermsProvider.get();
+
+                User user = luckPerms.getUserManager().getUser(uuid);
+
+                if (user != null) {
+                    return user.getCachedData().getPermissionData(user.getCachedData().getMetaData().getQueryOptions()).checkPermission(perm).asBoolean();
+                }
+            }
+        } catch (IllegalStateException ignored) {
+        }
+        return false;
     }
 
     private boolean checkPresent() {
@@ -108,6 +126,10 @@ public class PermissionUtil {
         }
     }
 
+    private boolean fallbackPermissionCheck(ServerCommandSource src, int minOpLevel) {
+        return src.hasPermissionLevel(minOpLevel);
+    }
+
     public boolean managerPresent() {
         return this.present;
     }
@@ -116,21 +138,20 @@ public class PermissionUtil {
         return this.manager;
     }
 
+    @Override
+    public String toString() {
+        return this.manager.name;
+    }
+
     public enum Manager {
-        NONE("none", ""),
-        VANILLA("Vanilla", ""),
-        LUCKPERMS("LuckPerms", "net.luckperms.api.LuckPerms");
+        NONE("none"),
+        VANILLA("Vanilla"),
+        LUCKPERMS("LuckPerms");
 
         private final String name;
-        private final String classPath;
 
-        Manager(final String name, final String classPath) {
+        Manager(final String name) {
             this.name = name;
-            this.classPath = classPath;
-        }
-
-        public String getName() {
-            return this.name;
         }
 
         @NotNull
@@ -143,11 +164,10 @@ public class PermissionUtil {
 
             return Manager.NONE;
         }
-    }
 
-    @Override
-    public String toString() {
-        return this.manager.name;
+        public String getName() {
+            return this.name;
+        }
     }
 
 }

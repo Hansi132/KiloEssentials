@@ -6,7 +6,6 @@ import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.server.command.ServerCommandSource;
 import org.kilocraft.essentials.KiloDebugUtils;
 import org.kilocraft.essentials.api.command.EssentialCommand;
-import org.kilocraft.essentials.chat.TextMessage;
 
 public class DebugEssentialsCommand extends EssentialCommand {
     public DebugEssentialsCommand() {
@@ -50,6 +49,6 @@ public class DebugEssentialsCommand extends EssentialCommand {
     }
 
     private void sendFeedback(final CommandContext<ServerCommandSource> ctx, String key, Object... objects) {
-        this.getServerUser(ctx).sendLangMessage(key, objects);
+        this.getCommandSource(ctx).sendLangMessage(key, objects);
     }
 }

@@ -4,11 +4,10 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.kilocraft.essentials.api.user.punishment.Punishment;
+import org.kilocraft.essentials.api.user.punishment.PunishmentEntry;
 import org.kilocraft.essentials.user.OnlineServerUser;
-import org.kilocraft.essentials.util.Action;
 import org.kilocraft.essentials.util.MutedPlayerList;
 
 import java.util.List;
@@ -16,7 +15,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 
 public interface UserManager {
 
@@ -130,5 +128,7 @@ public interface UserManager {
 
     MutedPlayerList getMutedPlayerList();
 
-    void performPunishment(@NotNull final Punishment punishment, @NotNull final Punishment.Type type, @NotNull Action<Punishment.ActionResult> action);
+    void onPunishmentPerformed(OnlineUser src, PunishmentEntry entry, Punishment.Type type, @Nullable String expiry, boolean silent);
+
+    void onPunishmentRevoked(OnlineUser src, PunishmentEntry entry, Punishment.Type type, @Nullable String expiry, boolean silent);
 }

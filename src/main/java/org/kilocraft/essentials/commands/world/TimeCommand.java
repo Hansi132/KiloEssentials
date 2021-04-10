@@ -3,18 +3,15 @@ package org.kilocraft.essentials.commands.world;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
 import org.kilocraft.essentials.CommandPermission;
-import org.kilocraft.essentials.chat.LangText;
+import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.command.EssentialCommand;
-import org.kilocraft.essentials.chat.KiloChat;
-
-import java.util.Iterator;
+import org.kilocraft.essentials.api.user.CommandSourceUser;
 
 import static com.mojang.brigadier.arguments.IntegerArgumentType.getInteger;
-import static net.minecraft.command.arguments.TimeArgumentType.time;
+import static net.minecraft.command.argument.TimeArgumentType.time;
 
 public class TimeCommand extends EssentialCommand {
     public TimeCommand() {
@@ -67,33 +64,35 @@ public class TimeCommand extends EssentialCommand {
 
     private static int executeQuery(CommandContext<ServerCommandSource> context, int time, String query) {
         ServerWorld w = context.getSource().getWorld();
+        CommandSourceUser user = KiloServer.getServer().getCommandSourceUser(context.getSource());
         switch (query){
-            case "daytime": KiloChat.sendLangMessageTo(context.getSource(), "command.time.query.daytime", time);break;
-            case "gametime": KiloChat.sendLangMessageTo(context.getSource(), "command.time.query.gametime", time);break;
-            case "day": KiloChat.sendLangMessageTo(context.getSource(), "command.time.query.day", time);break;
-            case "time": KiloChat.sendLangMessageTo(context.getSource(), "command.time.query.time", getDay(w), getFormattedTime(w));break;
+            case "daytime": user.sendLangMessage("command.time.query.daytime", time);break;
+            case "gametime": user.sendLangMessage("command.time.query.gametime", time);break;
+            case "day": user.sendLangMessage("command.time.query.day", time);break;
+            case "time": user.sendLangMessage("command.time.query.time", getDay(w), getFormattedTime(w));break;
         }
 
         return time;
     }
 
     public static int executeSet(CommandContext<ServerCommandSource> context, int time, String timeName){
-
+        CommandSourceUser user = KiloServer.getServer().getCommandSourceUser(context.getSource());
         for (ServerWorld world : context.getSource().getMinecraftServer().getWorlds()) {
-            world.method_29199(world.getTimeOfDay() - (world.getTimeOfDay() % 24000) + time);
+            world.setTimeOfDay(world.getTimeOfDay() - (world.getTimeOfDay() % 24000) + time);
         }
 
-        KiloChat.sendLangMessageTo(context.getSource(), "template.#2", "Server time", timeName + " &8(&d" + time + "&8)&r");
+        user.sendLangMessage("template.#2", "Server time", timeName + " &8(&d" + time + "&8)&r");
 
         return SUCCESS;
     }
 
     public static int executeAdd(CommandContext<ServerCommandSource> context, int timeToAdd) {
+        CommandSourceUser user = KiloServer.getServer().getCommandSourceUser(context.getSource());
         for (ServerWorld world : context.getSource().getMinecraftServer().getWorlds()) {
-            world.method_29199(world.getTimeOfDay() + timeToAdd);
+            world.setTimeOfDay(world.getTimeOfDay() + timeToAdd);
         }
 
-        KiloChat.sendLangMessageTo(context.getSource(), "template.#2", "Server time", context.getSource().getWorld().getTimeOfDay());
+        user.sendLangMessage("template.#2", "Server time", context.getSource().getWorld().getTimeOfDay());
         return SUCCESS;
     }
 

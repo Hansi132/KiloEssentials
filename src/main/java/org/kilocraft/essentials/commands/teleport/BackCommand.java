@@ -8,14 +8,14 @@ import net.minecraft.command.EntitySelector;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import org.kilocraft.essentials.CommandPermission;
+import org.kilocraft.essentials.api.command.ArgumentSuggestions;
 import org.kilocraft.essentials.api.command.EssentialCommand;
-import org.kilocraft.essentials.api.command.ArgumentCompletions;
 import org.kilocraft.essentials.api.user.OnlineUser;
 import org.kilocraft.essentials.api.world.location.Location;
 import org.kilocraft.essentials.commands.CommandUtils;
 
-import static net.minecraft.command.arguments.EntityArgumentType.getPlayer;
-import static net.minecraft.command.arguments.EntityArgumentType.player;
+import static net.minecraft.command.argument.EntityArgumentType.getPlayer;
+import static net.minecraft.command.argument.EntityArgumentType.player;
 
 public class BackCommand extends EssentialCommand {
     public BackCommand() {
@@ -26,7 +26,7 @@ public class BackCommand extends EssentialCommand {
     public void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         RequiredArgumentBuilder<ServerCommandSource, EntitySelector> selectorArgument = argument("target", player())
                 .requires(src -> hasPermission(src, CommandPermission.BACK_OTHERS))
-                .suggests(ArgumentCompletions::allPlayers)
+                .suggests(ArgumentSuggestions::allPlayers)
                 .executes(this::executeOthers);
 
         commandNode.addChild(selectorArgument.build());
@@ -45,7 +45,7 @@ public class BackCommand extends EssentialCommand {
         OnlineUser user = getOnlineUser(target);
 
         if (user.getLastSavedLocation() == null) {
-            sendMessage(ctx, "command.back.no_loc");
+            user.sendLangMessage("command.back.no_loc");
             return FAILED;
         }
 
@@ -56,7 +56,7 @@ public class BackCommand extends EssentialCommand {
         if (CommandUtils.areTheSame(ctx.getSource(), target))
             user.sendLangMessage("command.back.self", loc.asFormattedString());
         else
-            sendMessage(ctx, "command.back.others", user.getUsername(), loc.asFormattedString());
+            user.sendLangMessage("command.back.others", user.getUsername(), loc.asFormattedString());
 
         return SUCCESS;
     }

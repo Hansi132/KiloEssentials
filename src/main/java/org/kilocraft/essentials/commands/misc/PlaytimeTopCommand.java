@@ -15,8 +15,8 @@ import org.kilocraft.essentials.api.user.OnlineUser;
 import org.kilocraft.essentials.api.user.User;
 import org.kilocraft.essentials.api.util.Cached;
 import org.kilocraft.essentials.util.CacheManager;
-import org.kilocraft.essentials.util.text.Pager;
 import org.kilocraft.essentials.util.TimeDifferenceUtil;
+import org.kilocraft.essentials.util.text.ListedText;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -55,12 +55,12 @@ public class PlaytimeTopCommand extends EssentialCommand {
     private int send(final CommandContext<ServerCommandSource> ctx, int page, boolean force) throws CommandSyntaxException {
         OnlineUser src = this.getOnlineUser(ctx);
 
-        if (!force && CacheManager.shouldUse(CACHE_ID)) {
+        if (!force && CacheManager.isPresent(CACHE_ID)) {
             AtomicReference<List<Map.Entry<String, Integer>>> sortedList = new AtomicReference<>();
             AtomicLong totalTicks = new AtomicLong();
 
-            CacheManager.getAndRun(CACHE_ID, (cached) -> sortedList.set((List<Map.Entry<String, Integer>>) cached.get()));
-            CacheManager.getAndRun(TICKS_CACHE_ID, (cached) -> totalTicks.set((Long) cached.get()));
+            CacheManager.ifPresent(CACHE_ID, (cached) -> sortedList.set((List<Map.Entry<String, Integer>>) cached));
+            CacheManager.ifPresent(TICKS_CACHE_ID, (cached) -> totalTicks.set((Long) cached));
 
             if (sortedList.get() != null) {
                 return send(src, page, sortedList.get(), totalTicks.get());
@@ -94,8 +94,6 @@ public class PlaytimeTopCommand extends EssentialCommand {
     }
 
     private static int send(OnlineUser src, int page, List<Map.Entry<String, Integer>> sortedList, long totalTicks) {
-        int rank = 0;
-
         TextInput input = new TextInput(
                 ModConstants.translation("command.playtimetop.total", TimeDifferenceUtil.convertSecondsToString((int) (totalTicks / 20L), 'e', '6'))
         );
@@ -103,18 +101,12 @@ public class PlaytimeTopCommand extends EssentialCommand {
         for (int i = 0; i < sortedList.size(); i++) {
             Map.Entry<String, Integer> entry = sortedList.get(i);
 
-            if (entry.getKey().equalsIgnoreCase(src.getFormattedDisplayName())) {
-                rank = i;
-            }
-
             String pt = TimeDifferenceUtil.convertSecondsToString(entry.getValue() / 20, 'e', '6');
             input.append(String.format(LINE_FORMAT, i + 1, entry.getKey(), pt));
         }
 
-        Pager.Page paged = Pager.getPageFromStrings(Pager.Options.builder().setPageIndex(page - 1).build(), input.getLines());
+        ListedText.Page paged = ListedText.getPageFromStrings(ListedText.Options.builder().setPageIndex(page - 1).build(), input.getLines());
 
-        String pt = TimeDifferenceUtil.convertSecondsToString(src.getTicksPlayed() / 20, 'b', '3');
-        paged.setStickyFooter(String.format(ModConstants.translation("command.playtimetop.format.self"), rank + 1, src.getFormattedDisplayName(), pt));
         paged.send(src.getCommandSource(), "Top Play Times", "/playtimetop %page%");
         return SUCCESS;
     }

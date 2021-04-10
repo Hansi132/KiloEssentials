@@ -16,9 +16,8 @@ import org.apache.logging.log4j.Logger;
 import org.kilocraft.essentials.api.KiloEssentials;
 import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.ModConstants;
-import org.kilocraft.essentials.api.text.TextFormat;
-import org.kilocraft.essentials.api.world.MonitorableWorld;
-import org.kilocraft.essentials.util.TPSTracker;
+import org.kilocraft.essentials.api.text.ComponentText;
+import org.kilocraft.essentials.util.math.DataTracker;
 import org.kilocraft.essentials.util.text.Texter;
 
 import java.io.File;
@@ -100,30 +99,26 @@ public class KiloDebugUtils {
         BossBarManager manager = minecraftServer.getBossBarManager();
         bossBar = manager.add(DEBUG_BAR, new LiteralText("DebugBar"));
         bossBar.setMaxValue(20);
-        bossBar.setOverlay(BossBar.Style.PROGRESS);
+        bossBar.setStyle(BossBar.Style.PROGRESS);
     }
 
     public void update() {
         int loadedChunks = 0;
-        int entities = 0;
         for (ServerWorld world : minecraftServer.getWorlds()) {
-            MonitorableWorld moWorld = ((MonitorableWorld) world);
-            loadedChunks = loadedChunks + moWorld.totalLoadedChunks();
-            entities = entities + moWorld.loadedEntities();
+            loadedChunks = loadedChunks + world.getChunkManager().getTotalChunksLoadedCount();
         }
 
-        TPSTracker.tps1.getAverage();
+
 
         String debugText = String.format(DEBUG_FORMAT,
-                TextFormat.getFormattedTPS(TPSTracker.tps1.getAverage()),
-                TPSTracker.tps1.getShortAverage(),
-                TPSTracker.MillisecondPerTick.getShortAverage(), entities, loadedChunks,
+                ComponentText.formatTps(DataTracker.tps.getAverage(100)),
+                DataTracker.getFormattedMSPT(), loadedChunks,
                 ModConstants.getVersionInt(), ModConstants.getVersionNick()
         );
 
         bossBar.setName(Texter.newText().append(DEBUG_TEXT).append(Texter.newText(debugText)));
 
-        int tps = (int) TPSTracker.tps1.getAverage();
+        int tps = (int) DataTracker.tps.getAverage(100);
         bossBar.setValue(tps);
 
         if (tps > 15) {

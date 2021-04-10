@@ -3,11 +3,12 @@ package org.kilocraft.essentials.extensions.magicalparticles;
 import com.google.common.reflect.TypeToken;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
-import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.network.Packet;
 import net.minecraft.particle.*;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3f;
 import net.minecraft.util.registry.Registry;
 import ninja.leaping.configurate.ConfigurationNode;
 import ninja.leaping.configurate.ConfigurationOptions;
@@ -21,7 +22,7 @@ import org.kilocraft.essentials.KiloCommands;
 import org.kilocraft.essentials.api.KiloEssentials;
 import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.NBTStorage;
-import org.kilocraft.essentials.api.feature.RelodableConfigurableFeature;
+import org.kilocraft.essentials.api.feature.ReloadableConfigurableFeature;
 import org.kilocraft.essentials.api.feature.TickListener;
 import org.kilocraft.essentials.api.user.OnlineUser;
 import org.kilocraft.essentials.api.world.ParticleAnimation;
@@ -38,7 +39,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class ParticleAnimationManager implements RelodableConfigurableFeature, TickListener, NBTStorage {
+public class ParticleAnimationManager implements ReloadableConfigurableFeature, TickListener, NBTStorage {
     static Map<Identifier, ParticleAnimation> map = new HashMap<>();
     private static final Map<UUID, Identifier> uuidIdentifierMap = new HashMap<>();
     private static ParticleTypesConfig config;
@@ -47,7 +48,6 @@ public class ParticleAnimationManager implements RelodableConfigurableFeature, T
     public boolean register() {
         NBTStorageUtil.addCallback(this);
         KiloCommands.getInstance().register(new MagicalParticlesCommand());
-        load();
         return true;
     }
 
@@ -59,10 +59,10 @@ public class ParticleAnimationManager implements RelodableConfigurableFeature, T
 
     private static void loadConfig() {
         try {
-            KiloFile CONFIG_FILE = new KiloFile("particle_types.hocon", KiloEssentials.getEssentialsPath());
+            KiloFile CONFIG_FILE = new KiloFile("particle_types.conf", KiloEssentials.getEssentialsPath());
             if (!CONFIG_FILE.exists()) {
                 CONFIG_FILE.createFile();
-                CONFIG_FILE.pasteFromResources("assets/config/particle_types.hocon");
+                CONFIG_FILE.pasteFromResources("assets/config/particle_types.conf");
             }
 
             ConfigurationLoader<CommentedConfigurationNode> loader = HoconConfigurationLoader.builder()
@@ -152,8 +152,8 @@ public class ParticleAnimationManager implements RelodableConfigurableFeature, T
                     }
 
                     if (shouldContinue)
-                        particleEffect = new DustParticleEffect(
-                                Float.parseFloat(rgb[0]), Float.parseFloat(rgb[1]), Float.parseFloat(rgb[2]), section.scale
+                        particleEffect = new DustParticleEffect(new Vec3f(
+                                Float.parseFloat(rgb[0]), Float.parseFloat(rgb[1]), Float.parseFloat(rgb[2])), section.scale
                         );
                 } else {
                     particleEffect = (DefaultParticleType) effect;
@@ -429,17 +429,17 @@ public class ParticleAnimationManager implements RelodableConfigurableFeature, T
     }
 
     @Override
-    public CompoundTag serialize() {
-        CompoundTag tag = new CompoundTag();
+    public NbtCompound serialize() {
+        NbtCompound tag = new NbtCompound();
         uuidIdentifierMap.forEach((uuid, identifier) -> tag.putString(uuid.toString(), identifier.toString()));
         return tag;
     }
 
     @Override
-    public void deserialize(@NotNull CompoundTag compoundTag) {
+    public void deserialize(@NotNull NbtCompound NbtCompound) {
         uuidIdentifierMap.clear();
-        for (String key : compoundTag.getKeys()) {
-            uuidIdentifierMap.put(UUID.fromString(key), new Identifier(compoundTag.getString(key)));
+        for (String key : NbtCompound.getKeys()) {
+            uuidIdentifierMap.put(UUID.fromString(key), new Identifier(NbtCompound.getString(key)));
         }
     }
 }

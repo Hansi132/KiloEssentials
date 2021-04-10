@@ -1,7 +1,6 @@
 package org.kilocraft.essentials.listeners;
 
 import org.jetbrains.annotations.NotNull;
-import org.kilocraft.essentials.KiloDebugUtils;
 import org.kilocraft.essentials.api.KiloEssentials;
 import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.event.EventHandler;
@@ -14,15 +13,15 @@ public class OnTick implements EventHandler<ServerTickEvent> {
 
 	@Override
 	public void handle(@NotNull ServerTickEvent event) {
-		((ServerUserManager) KiloServer.getServer().getUserManager()).onTick();
+        ((ServerUserManager) KiloServer.getServer().getUserManager()).onTick();
 
-		if (tick >= 100) {
-			KiloServer.getServer().triggerEvent(new ServerScheduledUpdateEventImpl());
-			tick = 0;
-		}
+        if (tick >= 100) {
+            KiloServer.getServer().triggerEvent(new ServerScheduledUpdateEventImpl());
+            tick = 0;
+        }
 
-		KiloEssentials.getInstance().getFeatures().onTick();
-		tick++;
+        KiloEssentials.getInstance().getFeatures().onTick();
+        tick++;
 	}
 
 }

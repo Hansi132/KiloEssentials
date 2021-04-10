@@ -10,10 +10,7 @@ import net.minecraft.util.Formatting;
 import org.kilocraft.essentials.EssentialPermission;
 import org.kilocraft.essentials.api.KiloEssentials;
 import org.kilocraft.essentials.api.KiloServer;
-import org.kilocraft.essentials.chat.LangText;
-import org.kilocraft.essentials.api.command.ArgumentCompletions;
-import org.kilocraft.essentials.chat.KiloChat;
-import org.kilocraft.essentials.config.KiloConfig;
+import org.kilocraft.essentials.api.command.ArgumentSuggestions;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
 import static com.mojang.brigadier.arguments.StringArgumentType.greedyString;
@@ -24,7 +21,7 @@ public class RestartCommand {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         LiteralArgumentBuilder<ServerCommandSource> builder = literal("restart")
                 .then(argument("args", greedyString())
-                        .suggests(ArgumentCompletions::noSuggestions)
+                        .suggests(ArgumentSuggestions::noSuggestions)
                         .executes(c -> execute(c.getSource(), getString(c, "args"))))
                 .requires(s -> KiloEssentials.hasPermissionNode(s, EssentialPermission.SERVER_MANAGE_RESTART, 4))
                 .executes(c -> execute(c.getSource(), ""));
@@ -34,20 +31,15 @@ public class RestartCommand {
 
     private static int execute(ServerCommandSource source, String args) {
         boolean confirmed = args.contains("-confirmed");
-        boolean scriptPresent = KiloConfig.main().startupScript().enabled && KiloEssentials.getInstance().getStartupScript().exists();
 
         if (!confirmed && !KiloServer.getServer().getCommandSourceUser(source).isConsole()) {
-            if (!scriptPresent) {
-                source.sendFeedback(LangText.getFormatter(true, "command.restart.no_script").formatted(Formatting.RED), false);
-                return 0;
-            }
 
             LiteralText literalText = new LiteralText("Please confirm your action by clicking on this message!");
-            literalText.styled((style) -> {
-                return style.withFormatting(Formatting.RED).setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("[!] Click here to restart the server").formatted(Formatting.YELLOW))).withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/restart -confirmed"));
-            });
+            literalText.styled((style) -> style.withFormatting(Formatting.RED)
+                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("[!] Click here to restart the server").formatted(Formatting.YELLOW)))
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/restart -confirmed")));
 
-            KiloChat.sendMessageTo(source, literalText);
+            KiloServer.getServer().getCommandSourceUser(source).sendMessage(literalText);
             return 0;
         }
 

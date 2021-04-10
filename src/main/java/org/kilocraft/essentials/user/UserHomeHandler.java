@@ -4,25 +4,22 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.server.command.CommandSource;
+import net.minecraft.command.CommandSource;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.dimension.DimensionType;
 import org.kilocraft.essentials.KiloCommands;
 import org.kilocraft.essentials.api.KiloEssentials;
 import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.command.EssentialCommand;
 import org.kilocraft.essentials.api.feature.ConfigurableFeature;
 import org.kilocraft.essentials.api.user.OnlineUser;
-import org.kilocraft.essentials.api.world.location.exceptions.InsecureDestinationException;
 import org.kilocraft.essentials.extensions.homes.api.Home;
 import org.kilocraft.essentials.extensions.homes.api.UnsafeHomeException;
 import org.kilocraft.essentials.extensions.homes.commands.DelhomeCommand;
 import org.kilocraft.essentials.extensions.homes.commands.HomeCommand;
 import org.kilocraft.essentials.extensions.homes.commands.HomesCommand;
 import org.kilocraft.essentials.extensions.homes.commands.SethomeCommand;
-import org.kilocraft.essentials.util.LocationUtil;
 import org.kilocraft.essentials.util.registry.RegistryUtils;
 
 import java.util.ArrayList;
@@ -123,10 +120,15 @@ public class UserHomeHandler implements ConfigurableFeature {
 
     public void teleportToHome(OnlineUser user, Home home) throws UnsafeHomeException {
         if (user.isOnline()) {
-            ServerWorld world = Objects.requireNonNull(user.asPlayer().getServer()).getWorld(RegistryUtils.dimensionTypeToRegistryKey(home.getLocation().getDimensionType()));
+            ServerWorld world = Objects.requireNonNull(KiloEssentials.getServer()).getWorld(RegistryUtils.dimensionTypeToRegistryKey(home.getLocation().getDimensionType()));
 
             if (world == null) {
                 throw new UnsafeHomeException(home, Reason.MISSING_DIMENSION);
+            }
+
+            if (!userHomes.contains(home)) {
+                user.sendLangMessage("command.home.invalid_home");
+                return;
             }
 
             Home.teleportTo(user, home);
@@ -134,7 +136,7 @@ public class UserHomeHandler implements ConfigurableFeature {
 
     }
 
-    public CompoundTag serialize(CompoundTag tag) {
+    public NbtCompound serialize(NbtCompound tag) {
         for (Home userHome : this.userHomes) {
             tag.put(userHome.getName(), userHome.toTag());
         }
@@ -142,9 +144,9 @@ public class UserHomeHandler implements ConfigurableFeature {
         return tag;
     }
 
-    public void deserialize(CompoundTag compoundTag) {
-        for (String key : compoundTag.getKeys()) {
-            Home home = new Home(compoundTag.getCompound(key));
+    public void deserialize(NbtCompound NbtCompound) {
+        for (String key : NbtCompound.getKeys()) {
+            Home home = new Home(NbtCompound.getCompound(key));
             home.setName(key);
             home.setOwner(this.serverUser.uuid);
             this.userHomes.add(home);

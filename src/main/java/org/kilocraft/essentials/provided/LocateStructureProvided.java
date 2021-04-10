@@ -1,7 +1,9 @@
 package org.kilocraft.essentials.provided;
 
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.*;
+import net.minecraft.text.Text;
+import net.minecraft.text.Texts;
+import net.minecraft.text.TranslatableText;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
@@ -22,7 +24,7 @@ public class LocateStructureProvided {
         Text coordinates = Texts.bracketed(new TranslatableText("chat.coordinates", blockPos_2.getX(), "~", blockPos_2.getZ())
                 .styled((style) -> style.withFormatting(Formatting.GREEN)
                         .withClickEvent(Texter.Events.onClickSuggest("/tp " + source.getName() + " " + blockPos_2.getX() + " ~ " + blockPos_2.getZ()))
-                        .setHoverEvent(Texter.Events.onHover(new TranslatableText("chat.coordinates.tooltip")))
+                        .withHoverEvent(Texter.Events.onHover(new TranslatableText("chat.coordinates.tooltip")))
                 )
         );
 

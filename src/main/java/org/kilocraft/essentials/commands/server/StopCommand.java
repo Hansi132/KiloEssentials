@@ -10,8 +10,7 @@ import net.minecraft.util.Formatting;
 import org.kilocraft.essentials.EssentialPermission;
 import org.kilocraft.essentials.api.KiloEssentials;
 import org.kilocraft.essentials.api.KiloServer;
-import org.kilocraft.essentials.api.command.ArgumentCompletions;
-import org.kilocraft.essentials.chat.KiloChat;
+import org.kilocraft.essentials.api.command.ArgumentSuggestions;
 import org.kilocraft.essentials.commands.CommandUtils;
 
 import static com.mojang.brigadier.arguments.StringArgumentType.getString;
@@ -23,7 +22,7 @@ public class StopCommand {
     public static void register(CommandDispatcher<ServerCommandSource> dispatcher) {
         LiteralArgumentBuilder<ServerCommandSource> builder = literal("stop")
                 .then(argument("args", greedyString())
-                        .suggests(ArgumentCompletions::noSuggestions)
+                        .suggests(ArgumentSuggestions::noSuggestions)
                         .executes(c -> execute(c.getSource(), getString(c, "args"))))
                 .requires(s -> KiloEssentials.hasPermissionNode(s, EssentialPermission.SERVER_MANAGE_STOP, 4))
                 .executes(c -> execute(c.getSource(), ""));
@@ -36,11 +35,9 @@ public class StopCommand {
 
         if (!confirmed && !CommandUtils.isConsole(source)) {
             LiteralText literalText = new LiteralText("Please confirm your action by clicking on this message!");
-            literalText.styled((style) -> {
-                return style.withFormatting(Formatting.RED).setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("[!] Click here to stop the server").formatted(Formatting.YELLOW))).withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/stop -confirmed"));
-            });
+            literalText.styled((style) -> style.withFormatting(Formatting.RED).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("[!] Click here to stop the server").formatted(Formatting.YELLOW))).withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/stop -confirmed")));
 
-            KiloChat.sendMessageTo(source, literalText);
+            KiloServer.getServer().getCommandSourceUser(source).sendMessage(literalText);
         } else
             KiloServer.getServer().shutdown();
 

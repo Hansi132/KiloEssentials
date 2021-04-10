@@ -34,9 +34,11 @@ import org.kilocraft.essentials.api.feature.ConfigurableFeatures;
 import org.kilocraft.essentials.api.server.Server;
 import org.kilocraft.essentials.api.user.OnlineUser;
 import org.kilocraft.essentials.api.user.User;
+import org.kilocraft.essentials.util.LuckPermsCompatibility;
 import org.kilocraft.essentials.util.PermissionUtil;
 import org.kilocraft.essentials.util.StartupScript;
 import org.kilocraft.essentials.util.messages.MessageUtil;
+import org.kilocraft.essentials.util.settings.ServerSettings;
 
 import java.io.File;
 import java.nio.file.Path;
@@ -88,6 +90,10 @@ public interface KiloEssentials {
 
     CompletableFuture<Optional<User>> getUserThenAcceptAsync(UUID uuid, Consumer<? super Optional<User>> action);
 
+    Optional<User> getUserThenAccept(UUID uuid, Consumer<? super Optional<User>> action);
+
+    Optional<User> getUser(UUID uuid);
+
     CompletableFuture<Optional<User>> getUserThenAcceptAsync(String username, Consumer<? super Optional<User>> action, Executor executor);
 
     PermissionUtil getPermissionUtil();
@@ -110,4 +116,7 @@ public interface KiloEssentials {
         return new File(KiloEssentials.getWorkingDirectory()).toPath().resolve("server.properties");
     }
 
+    Optional<LuckPermsCompatibility> getLuckPermsCompatibility();
+
+    ServerSettings getSettingManager();
 }

@@ -1,7 +1,7 @@
 package org.kilocraft.essentials.simplecommand;
 
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.server.command.CommandManager;
 import net.minecraft.server.command.ServerCommandSource;
@@ -11,10 +11,9 @@ import org.jetbrains.annotations.Nullable;
 import org.kilocraft.essentials.CommandPermission;
 import org.kilocraft.essentials.KiloCommands;
 import org.kilocraft.essentials.api.KiloEssentials;
-import org.kilocraft.essentials.api.command.ArgumentCompletions;
-import org.kilocraft.essentials.api.server.Server;
-import org.kilocraft.essentials.chat.TextMessage;
-import org.kilocraft.essentials.chat.KiloChat;
+import org.kilocraft.essentials.api.KiloServer;
+import org.kilocraft.essentials.api.command.ArgumentSuggestions;
+import org.kilocraft.essentials.api.user.CommandSourceUser;
 import org.kilocraft.essentials.config.KiloConfig;
 
 import java.util.ArrayList;
@@ -22,8 +21,8 @@ import java.util.List;
 
 public class SimpleCommandManager {
     private static SimpleCommandManager INSTANCE;
-    private List<SimpleCommand> commands;
-    private List<String> byId;
+    private final List<SimpleCommand> commands;
+    private final List<String> byId;
 
     public SimpleCommandManager() {
         INSTANCE = this;
@@ -36,16 +35,15 @@ public class SimpleCommandManager {
             INSTANCE.commands.add(command);
             INSTANCE.byId.add(command.id);
 
-            KiloCommands.getDispatcher().register(CommandManager.literal(command.getLabel())
-                    .requires(
-                            src -> canUse(src, command)
-                    )
-                    .then(
-                            CommandManager.argument("args", StringArgumentType.greedyString())
-                                    .requires(src -> INSTANCE.byId.contains(command.id))
-                                    .suggests(ArgumentCompletions::noSuggestions)
-                    )
-            );
+            LiteralArgumentBuilder<ServerCommandSource> builder = CommandManager.literal(command.getLabel())
+                    .requires(src -> canUse(src, command));
+
+            if (command.hasArgs) {
+                builder.then(CommandManager.argument("args", StringArgumentType.greedyString())
+                        .suggests(ArgumentSuggestions::noSuggestions));
+            }
+
+            KiloCommands.getDispatcher().register(builder);
         }
     }
 
@@ -63,7 +61,7 @@ public class SimpleCommandManager {
     }
 
     public static void unregister(String id) {
-        if (INSTANCE != null &&  getCommand(id) != null) {
+        if (INSTANCE != null && getCommand(id) != null) {
             unregister(getCommand(id));
         }
     }
@@ -110,7 +108,8 @@ public class SimpleCommandManager {
                     return true;
                 }
             }
-        } catch (final ArrayIndexOutOfBoundsException ignored) {}
+        } catch (final ArrayIndexOutOfBoundsException ignored) {
+        }
 
         return false;
     }
@@ -121,11 +120,12 @@ public class SimpleCommandManager {
         SimpleCommand command = getCommandByLabel(label);
         String str = input.replaceFirst("/", "").replaceFirst(label + " ", "");
         String[] args = str.replaceFirst(label, "").split(" ");
+        CommandSourceUser user = KiloServer.getServer().getCommandSourceUser(source);
 
         try {
             if (command != null) {
                 if (command.opReq >= 1 && !source.hasPermissionLevel(command.opReq)) {
-                    KiloCommands.sendPermissionError(source);
+                    user.sendPermissionError("");
                     return 0;
                 }
 
@@ -136,11 +136,9 @@ public class SimpleCommandManager {
                 CommandPermission reqPerm = CommandPermission.getByNode(label);
 
                 if (isCommand(label) && (reqPerm != null && !KiloCommands.hasPermission(source, reqPerm)))
-                    KiloCommands.sendPermissionError(source);
+                    user.sendPermissionError("");
                 else
-                    KiloChat.sendMessageToSource(source, new TextMessage(
-                            KiloConfig.messages().commands().context().executionException
-                            , true));
+                    user.sendMessage(KiloConfig.messages().commands().context().executionException);
 
             } else {
                 source.sendError(Texts.toText(e.getRawMessage()));
@@ -148,14 +146,14 @@ public class SimpleCommandManager {
                 if (e.getInput() != null && e.getCursor() >= 0) {
                     int cursor = Math.min(e.getInput().length(), e.getCursor());
                     MutableText text = (new LiteralText("")).formatted(Formatting.GRAY)
-                            .styled((style) -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, input)).setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(input).formatted(Formatting.YELLOW))));
+                            .styled((style) -> style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, input)).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText(input).formatted(Formatting.YELLOW))));
 
                     if (cursor > 10) text.append("...");
 
                     text.append(e.getInput().substring(Math.max(0, cursor - 10), cursor));
                     if (cursor < e.getInput().length()) {
-                        Text errorAtPointMesssage = (new LiteralText(e.getInput().substring(cursor))).formatted(Formatting.RED, Formatting.UNDERLINE);
-                        text.append(errorAtPointMesssage);
+                        Text errorAtPointMessage = (new LiteralText(e.getInput().substring(cursor))).formatted(Formatting.RED, Formatting.UNDERLINE);
+                        text.append(errorAtPointMessage);
                     }
 
                     text.append(new LiteralText("<--[HERE]").formatted(Formatting.RED, Formatting.ITALIC));

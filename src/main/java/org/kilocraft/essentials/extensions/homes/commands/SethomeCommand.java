@@ -11,16 +11,14 @@ import net.minecraft.text.HoverEvent;
 import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.world.World;
 import org.kilocraft.essentials.CommandPermission;
 import org.kilocraft.essentials.KiloCommands;
-import org.kilocraft.essentials.chat.LangText;
 import org.kilocraft.essentials.api.command.EssentialCommand;
-import org.kilocraft.essentials.api.command.ArgumentCompletions;
 import org.kilocraft.essentials.api.user.OnlineUser;
 import org.kilocraft.essentials.api.user.User;
 import org.kilocraft.essentials.api.world.location.Vec3dLocation;
-import org.kilocraft.essentials.chat.TextMessage;
-import org.kilocraft.essentials.chat.KiloChat;
+import org.kilocraft.essentials.chat.StringText;
 import org.kilocraft.essentials.commands.CommandUtils;
 import org.kilocraft.essentials.config.KiloConfig;
 import org.kilocraft.essentials.extensions.homes.api.Home;
@@ -59,20 +57,24 @@ public class SethomeCommand extends EssentialCommand {
         String name = input.replaceFirst("-confirmed-", "");
 
         if (!canSet(user) && !homeHandler.hasHome(name)) {
-            user.sendMessage(messages.commands().playerHomes().reachedLimit);
+            user.sendLangMessage("command.sethome.limit");
+            return FAILED;
+        }
+
+        if (!World.isValid(player.getBlockPos())) {
+            user.sendLangError("general.position_out_of_world");
             return FAILED;
         }
 
         if (homeHandler.hasHome(name) && !input.startsWith("-confirmed-")) {
-            KiloChat.sendMessageTo(player, getConfirmationText(name, ""));
+            user.sendMessage(getConfirmationText(name, ""));
             return AWAIT;
         } else {
             homeHandler.removeHome(name);
         }
 
         homeHandler.addHome(new Home(player.getUuid(), name, Vec3dLocation.of(player).shortDecimals()));
-        user.sendMessage(new TextMessage(HomeCommand.replaceVariables(
-                KiloConfig.messages().commands().playerHomes().homeSet, user, user, homeHandler.getHome(name)), user));
+        user.sendLangMessage("command.sethome.self", name);
 
         return SUCCESS;
     }
@@ -84,17 +86,21 @@ public class SethomeCommand extends EssentialCommand {
         String input = getString(ctx, "name");
         String name = input.replaceFirst("-confirmed-", "");
 
+        if (!World.isValid(player.getBlockPos())) {
+            source.sendLangError("general.position_out_of_world");
+            return FAILED;
+        }
+
         getEssentials().getUserThenAcceptAsync(player, inputName, (user) -> {
             UserHomeHandler homeHandler = user.getHomesHandler();
 
             if (CommandUtils.areTheSame(source, user) && canSet(user) && !homeHandler.hasHome(name)) {
-                source.sendMessage(messages.commands().playerHomes().reachedLimit
-                        .replace("{HOME_SIZE}", String.valueOf(homeHandler.getHomes().size())));
+                source.sendLangMessage("command.sethome.limit");
                 return;
             }
 
             if (homeHandler.hasHome(name) && !input.startsWith("-confirmed-")) {
-                KiloChat.sendMessageTo(player, getConfirmationText(name, user.getUsername()));
+                source.sendMessage(getConfirmationText(name, user.getUsername()));
                 return;
             } else {
                 homeHandler.removeHome(name);
@@ -109,11 +115,9 @@ public class SethomeCommand extends EssentialCommand {
             }
 
             if (CommandUtils.areTheSame(source, user))
-                source.sendMessage(messages.commands().playerHomes().homeSet
-                        .replace("{HOME_NAME}", name));
-            else source.sendMessage(messages.commands().playerHomes().admin().homeSet
-                    .replace("{HOME_NAME}", name)
-                    .replace("{TARGET_TAG}", user.getNameTag()));
+                source.sendLangMessage("command.sethome.self", name);
+            else
+                source.sendLangMessage("command.sethome.other", name, user.getDisplayName());
         });
 
         return AWAIT;
@@ -135,13 +139,13 @@ public class SethomeCommand extends EssentialCommand {
 
     private Text getConfirmationText(String homeName, String user) {
         return new LiteralText("")
-                .append(LangText.get(true, "command.sethome.confirmation_message")
+                .append(StringText.of(true, "command.sethome.confirmation_message")
                         .formatted(Formatting.YELLOW))
                 .append(new LiteralText(" [").formatted(Formatting.GRAY)
                         .append(new LiteralText("Click here to Confirm").formatted(Formatting.GREEN))
                         .append(new LiteralText("]").formatted(Formatting.GRAY))
                         .styled((style) -> {
-                            return style.withFormatting(Formatting.GRAY).setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Confirm").formatted(Formatting.YELLOW))).withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/sethome -confirmed-" + homeName + " " + user));
+                            return style.withFormatting(Formatting.GRAY).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Confirm").formatted(Formatting.YELLOW))).withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/sethome -confirmed-" + homeName + " " + user));
                         }));
     }
 

@@ -1,11 +1,15 @@
 package org.kilocraft.essentials.mixin;
 
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.*;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.Hand;
 import org.kilocraft.essentials.api.KiloServer;
 import org.kilocraft.essentials.api.user.OnlineUser;
 import org.kilocraft.essentials.config.KiloConfig;
+import org.kilocraft.essentials.util.InteractionHandler;
 import org.kilocraft.essentials.util.player.UserUtils;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -29,10 +33,15 @@ public abstract class PlayerEntityMixin {
         if (player.getScoreboardTeam() != null && user != null) {
             Text text = new LiteralText(user.getFormattedDisplayName()).styled((style) ->
                     style.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/tell " + this.getEntityName() + " "))
-                            .setHoverEvent((HoverEvent) this.addTellClickEvent(UserUtils.getDisplayNameWithMeta(user, true))).withInsertion(this.getEntityName()));
+                            .withHoverEvent((HoverEvent) this.addTellClickEvent(UserUtils.getDisplayNameWithMeta(user, true))).withInsertion(this.getEntityName()));
 
-            cir.setReturnValue(player.getScoreboardTeam().modifyText(text));
+            cir.setReturnValue(player.getScoreboardTeam().decorateName(text));
         }
+    }
+
+    @Inject(method = "interact", at = @At(value = "HEAD"))
+    public void onInteract(Entity entity, Hand hand, CallbackInfoReturnable<ActionResult> cir) {
+        InteractionHandler.handleInteraction((ServerPlayerEntity) (Object) this, entity, false);
     }
 
 }

@@ -12,13 +12,10 @@ import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.kilocraft.essentials.CommandPermission;
-import org.kilocraft.essentials.chat.LangText;
 import org.kilocraft.essentials.api.command.EssentialCommand;
 import org.kilocraft.essentials.api.user.OnlineUser;
-import org.kilocraft.essentials.chat.TextMessage;
-import org.kilocraft.essentials.chat.KiloChat;
+import org.kilocraft.essentials.chat.StringText;
 import org.kilocraft.essentials.commands.CommandUtils;
-import org.kilocraft.essentials.config.KiloConfig;
 import org.kilocraft.essentials.user.UserHomeHandler;
 import org.kilocraft.essentials.util.messages.nodes.ExceptionMessageNode;
 
@@ -55,19 +52,18 @@ public class DelhomeCommand extends EssentialCommand {
         String name = input.replaceFirst("-confirmed-", "");
 
         if (!homeHandler.hasHome(name)) {
-            user.sendMessage(KiloConfig.messages().commands().playerHomes().invalidHome);
+            user.sendLangMessage("command.home.invalid_home");
             return FAILED;
         }
 
         if (homeHandler.hasHome(name) && !input.startsWith("-confirmed-")) {
-            KiloChat.sendMessageTo(player, getConfirmationText(name, ""));
+            user.sendMessage(getConfirmationText(name, ""));
             return AWAIT;
         } else {
             homeHandler.removeHome(name);
         }
 
-        user.sendMessage(new TextMessage(KiloConfig.messages().commands().playerHomes().homeRemoved
-                .replace("{HOME_NAME}", name), true));
+        user.sendLangMessage("command.delhome.self", name);
 
         return SUCCESS;
     }
@@ -84,15 +80,14 @@ public class DelhomeCommand extends EssentialCommand {
 
             if (!homeHandler.hasHome(name)) {
                 if (CommandUtils.areTheSame(source, user))
-                    source.sendMessage(messages.commands().playerHomes().noHome);
+                    source.sendLangMessage("command.home.no_home.self");
                 else
-                    source.sendMessage(messages.commands().playerHomes().admin().noHome
-                            .replace("{TARGET_TAG}", user.getNameTag()));
+                    source.sendLangMessage("command.home.no_home.other", user.getDisplayName());
                 return;
             }
 
             if (homeHandler.hasHome(name) && !input.startsWith("-confirmed-")) {
-                KiloChat.sendMessageTo(player, getConfirmationText(name, user.getUsername()));
+                source.sendMessage(getConfirmationText(name, user.getUsername()));
                 return;
             } else {
                 homeHandler.removeHome(name);
@@ -105,11 +100,9 @@ public class DelhomeCommand extends EssentialCommand {
             }
 
             if (CommandUtils.areTheSame(source, user))
-                source.sendMessage(messages.commands().playerHomes().homeRemoved
-                        .replace("{HOME_NAME}", name));
-            else source.sendMessage(messages.commands().playerHomes().admin().homeRemoved
-                    .replace("{HOME_NAME}", name)
-                    .replace("{TARGET_TAG}", user.getNameTag()));
+                source.sendLangMessage("command.delhome.self", name);
+            else
+                source.sendLangMessage("command.delhome.other", name, user.getDisplayName());
         });
 
         return AWAIT;
@@ -117,13 +110,11 @@ public class DelhomeCommand extends EssentialCommand {
 
     private Text getConfirmationText(String homeName, String user) {
         return new LiteralText("")
-                .append(LangText.get(true, "command.delhome.confirmation_message")
+                .append(StringText.of(true, "command.delhome.confirmation_message")
                         .formatted(Formatting.YELLOW))
                 .append(new LiteralText(" [").formatted(Formatting.GRAY)
                         .append(new LiteralText("Click here to Confirm").formatted(Formatting.GREEN))
                         .append(new LiteralText("]").formatted(Formatting.GRAY))
-                        .styled((style) -> {
-                            return style.withFormatting(Formatting.GRAY).setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Confirm").formatted(Formatting.YELLOW))).withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/delhome -confirmed-" + homeName + " " + user));
-                        }));
+                        .styled((style) -> style.withFormatting(Formatting.GRAY).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new LiteralText("Confirm").formatted(Formatting.YELLOW))).withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/delhome -confirmed-" + homeName + " " + user))));
     }
 }

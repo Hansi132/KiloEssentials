@@ -1,21 +1,18 @@
 package org.kilocraft.essentials.util.monitor;
 
 
-import sun.management.ManagementFactoryHelper;
 import javax.management.Attribute;
 import javax.management.AttributeList;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.File;
 import java.lang.management.ManagementFactory;
-import java.lang.management.OperatingSystemMXBean;
 import java.text.DecimalFormat;
 
 public class SystemMonitor {
-    public static OperatingSystemMXBean systemMXBean = ManagementFactoryHelper.getOperatingSystemMXBean();
 
-    private static Runtime runTime = Runtime.getRuntime();
-    private static DecimalFormat decimalFormat = new DecimalFormat("##.##");
+    private static final Runtime runTime = Runtime.getRuntime();
+    private static final DecimalFormat decimalFormat = new DecimalFormat("##.##");
 
     private static long RAM_MAX_MB, RAM_TOTAL_MB, RAM_FREE_MB, RAM_USED_MB;
     private static long DISK_MAX_GB, DISK_FREE_GB, DISK_USABLE_GB, DISK_USED_GB;
@@ -47,7 +44,6 @@ public class SystemMonitor {
         RAM_USED_PERCENTAGE = ((double) RAM_USED / RAM_TOTAL) * 100;
     }
 
-    @SuppressWarnings({"Heavy process", "un checked"})
     public static double getCpuLoadPercentage() throws Exception {
         MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
         ObjectName name = ObjectName.getInstance("java.lang:type=OperatingSystem");
@@ -58,14 +54,14 @@ public class SystemMonitor {
         }
 
         Attribute att = (Attribute) list.get(0);
-        Double value  = (Double) att.getValue();
+        Double value = (Double) att.getValue();
 
         // usually takes a couple of seconds before we get real values
         if (value == -1.0) {
             return Double.NaN;
         }
         // returns a percentage value with 1 decimal point precision
-        return ((int)(value * 1000) / 10.0);
+        return ((int) (value * 1000) / 10.0);
     }
 
     public static double getRamTotalMB() {
@@ -116,10 +112,6 @@ public class SystemMonitor {
     public static double getDiskUsedGB() {
         updateDiskInfo();
         return DISK_USED_GB;
-    }
-
-    public static OperatingSystemMXBean getOsSystemMXBean() {
-        return systemMXBean;
     }
 
 }

@@ -6,15 +6,18 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.*;
+import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
+import net.minecraft.text.LiteralText;
+import net.minecraft.text.MutableText;
 import net.minecraft.util.Formatting;
 import org.kilocraft.essentials.CommandPermission;
 import org.kilocraft.essentials.KiloCommands;
 import org.kilocraft.essentials.api.KiloServer;
+import org.kilocraft.essentials.api.user.CommandSourceUser;
+import org.kilocraft.essentials.api.user.OnlineUser;
+import org.kilocraft.essentials.api.util.ScheduledExecutionThread;
 import org.kilocraft.essentials.api.world.location.Vec3dLocation;
-import org.kilocraft.essentials.chat.TextMessage;
-import org.kilocraft.essentials.chat.KiloChat;
-import org.kilocraft.essentials.config.KiloConfig;
 import org.kilocraft.essentials.simplecommand.SimpleCommand;
 import org.kilocraft.essentials.simplecommand.SimpleCommandManager;
 
@@ -56,9 +59,9 @@ public class WarpCommand {
                 SimpleCommandManager.register(
                         new SimpleCommand(
                                 "server_warp:" + warp.getName().toLowerCase(Locale.ROOT),
-                                warp.getName().toLowerCase(),
+                                warp.getName().toLowerCase(Locale.ROOT),
                                 (source, args, server) -> executeTeleport(source, warp.getName())
-                        )
+                        ).withoutArgs()
                 );
             }
         }
@@ -87,19 +90,28 @@ public class WarpCommand {
     }
 
     private static int executeTeleport(ServerCommandSource source, String name) throws CommandSyntaxException {
-        if (!ServerWarpManager.getWarpsByName().contains(name))
+        if (!ServerWarpManager.getWarpsByName().contains(name)) {
             throw WARP_NOT_FOUND_EXCEPTION.create();
-            ServerWarp warp = ServerWarpManager.getWarp(name);
-
-            KiloChat.sendMessageTo(source, new TextMessage(
-                    KiloConfig.messages().commands().warp().teleportTo
-                            .replace("{WARP_NAME}", name),
-                    true
-            ));
-
-            KiloServer.getServer().getOnlineUser(source.getPlayer()).saveLocation();
-            ServerWarpManager.teleport(source, warp);
-
+        }
+        source.getPlayer();
+        ServerWarp warp = ServerWarpManager.getWarp(name);
+        OnlineUser user = KiloServer.getServer().getOnlineUser(source.getPlayer());
+        //TODO: Set a home for people who warp and don't have a home yet
+/*        if (UserHomeHandler.isEnabled() && user.getHomesHandler().getHomes().isEmpty()) {
+            Home home = new Home();
+            user.getHomesHandler().addHome();
+        }*/
+        ScheduledExecutionThread.teleport(user, null, () -> {
+            if (user.isOnline()) {
+                user.sendLangMessage("command.warp.teleport", warp.getName());
+                user.saveLocation();
+                try {
+                    ServerWarpManager.teleport(user.getCommandSource(), warp);
+                } catch (CommandSyntaxException ignored) {
+                    //We already have a check, which checks if the executor is a player
+                }
+            }
+        });
         return 1;
     }
 
@@ -122,12 +134,10 @@ public class WarpCommand {
 
             Formatting thisFormat = nextColor ? Formatting.WHITE : Formatting.GRAY;
 
-            thisWarp.append(new LiteralText(warp.getName()).styled((style) -> {
-                return style.withFormatting(thisFormat).setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-                        new LiteralText("[i] ").formatted(Formatting.YELLOW)
-                                .append(new LiteralText("Click to teleport!").formatted(Formatting.GREEN)))).withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
-                        "/warp " + warp.getName()));
-            }));
+            thisWarp.append(new LiteralText(warp.getName()).styled((style) -> style.withFormatting(thisFormat).withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                    new LiteralText("[i] ").formatted(Formatting.YELLOW)
+                            .append(new LiteralText("Click to teleport!").formatted(Formatting.GREEN)))).withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
+                    "/warp " + warp.getName()))));
 
             if (warpsSize != i)
                 thisWarp.append(new LiteralText(", ").formatted(Formatting.DARK_GRAY));
@@ -136,15 +146,14 @@ public class WarpCommand {
 
             text.append(thisWarp);
         }
-
-        KiloChat.sendMessageToSource(source, text);
+        KiloServer.getServer().getCommandSourceUser(source).sendMessage(text);
         return 1;
     }
 
     private static int executeAdd(ServerCommandSource source, String name, boolean addCommand) throws CommandSyntaxException {
         ServerWarpManager.addWarp(new ServerWarp(name, Vec3dLocation.of(source.getPlayer()).shortDecimals(), addCommand));
-
-        KiloChat.sendLangMessageTo(source, "command.warp.set", name);
+        CommandSourceUser user = KiloServer.getServer().getCommandSourceUser(source);
+        user.sendLangMessage("command.warp.set", name);
         registerAliases();
         KiloCommands.updateGlobalCommandTree();
         return 1;
@@ -152,9 +161,10 @@ public class WarpCommand {
 
     private static int executeRemove(ServerCommandSource source, String warp) throws CommandSyntaxException {
         ServerWarp w = ServerWarpManager.getWarp(warp);
+        CommandSourceUser user = KiloServer.getServer().getCommandSourceUser(source);
         if (w != null) {
             ServerWarpManager.removeWarp(w);
-            KiloChat.sendLangMessageTo(source, "command.warp.remove", warp);
+            user.sendLangMessage("command.warp.remove", warp);
         }
         else
             throw WARP_NOT_FOUND_EXCEPTION.create();

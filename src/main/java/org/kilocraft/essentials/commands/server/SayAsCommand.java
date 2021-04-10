@@ -3,32 +3,25 @@ package org.kilocraft.essentials.commands.server;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.brigadier.tree.ArgumentCommandNode;
-import net.minecraft.server.command.CommandSource;
+import net.minecraft.command.CommandSource;
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.Text;
-import net.minecraft.text.TranslatableText;
 import org.kilocraft.essentials.CommandPermission;
 import org.kilocraft.essentials.api.KiloServer;
+import org.kilocraft.essentials.api.command.ArgumentSuggestions;
 import org.kilocraft.essentials.api.command.EssentialCommand;
-import org.kilocraft.essentials.api.command.ArgumentCompletions;
+import org.kilocraft.essentials.api.user.CommandSourceUser;
 import org.kilocraft.essentials.api.user.OnlineUser;
-import org.kilocraft.essentials.chat.KiloChat;
 import org.kilocraft.essentials.chat.ServerChat;
-import org.kilocraft.essentials.chat.TextMessage;
-import org.kilocraft.essentials.util.text.Texter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-import static com.mojang.brigadier.arguments.StringArgumentType.getString;
-import static com.mojang.brigadier.arguments.StringArgumentType.word;
-import static net.minecraft.command.arguments.MessageArgumentType.*;
+import static com.mojang.brigadier.arguments.StringArgumentType.*;
 
 public class SayAsCommand extends EssentialCommand {
     public SayAsCommand() {
@@ -45,8 +38,8 @@ public class SayAsCommand extends EssentialCommand {
                 .suggests(this::channelIdSuggestions)
                 .build();
 
-        ArgumentCommandNode<ServerCommandSource, MessageFormat> messageArg = argument("message", message())
-                .suggests(ArgumentCompletions::noSuggestions)
+        ArgumentCommandNode<ServerCommandSource, String> messageArg = argument("message", greedyString())
+                .suggests(ArgumentSuggestions::noSuggestions)
                 .executes(this::execute)
                 .build();
 
@@ -55,30 +48,23 @@ public class SayAsCommand extends EssentialCommand {
         commandNode.addChild(selectorArg);
     }
 
-    private int execute(CommandContext<ServerCommandSource> ctx) throws CommandSyntaxException {
+    private int execute(CommandContext<ServerCommandSource> ctx) {
         String inputTarget = getString(ctx, "target");
-        Text message = getMessage(ctx, "message");
+        String message = StringArgumentType.getString(ctx,"message");
         ServerChat.Channel channel = ServerChat.Channel.getById(StringArgumentType.getString(ctx, "channel"));
-        OnlineUser src = this.getOnlineUser(ctx);
+        CommandSourceUser src = this.getCommandSource(ctx);
         OnlineUser target = this.getOnlineUser(inputTarget);
 
         if (channel == null) {
             src.sendLangError("channel.invalid");
             return FAILED;
         }
-
-        if (inputTarget.equalsIgnoreCase("-Server")) {
-            KiloChat.broadCast(new TranslatableText("chat.type.announcement", KiloServer.getServer().getMinecraftServer().getCommandSource().getDisplayName(), message));
-            return SUCCESS;
-        }
-
-        ServerChat.sendSafely(target, new TextMessage(Texter.Legacy.toFormattedString(message)), channel);
+        ServerChat.sendChatMessage(target, message, channel);
         return SUCCESS;
     }
 
     private CompletableFuture<Suggestions> playerSuggestions(CommandContext<ServerCommandSource> context, SuggestionsBuilder builder) {
         List<String> strings = new ArrayList<>(Arrays.asList(KiloServer.getServer().getPlayerManager().getPlayerNames()));
-        strings.add("-server");
         return CommandSource.suggestMatching(strings, builder);
     }
 

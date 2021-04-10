@@ -1,19 +1,17 @@
 package org.kilocraft.essentials.api.text;
 
 import com.google.common.collect.Maps;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.LiteralText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import org.apache.commons.lang3.Validate;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.kilocraft.essentials.commands.CommandUtils;
 
 import java.util.Map;
 import java.util.regex.Pattern;
 
+@Deprecated
 public enum TextFormat {
     /**
      * Represents black
@@ -86,7 +84,7 @@ public enum TextFormat {
     /**
      * Makes the text bold.
      */
-    BOLD('l', 0x11, Formatting.BOLD ,true, "\\u001b[1m"),
+    BOLD('l', 0x11, Formatting.BOLD, true, "\\u001b[1m"),
     /**
      * Makes a line appear through the text.
      */
@@ -94,23 +92,24 @@ public enum TextFormat {
     /**
      * Makes the text appear underlined.
      */
-    UNDERLINE('n', 0x13, Formatting.UNDERLINE,true, "\\u001b[4m"),
+    UNDERLINED('n', 0x13, Formatting.UNDERLINE, true, "\\u001b[4m"),
     /**
      * Makes the text italic.
      */
-    ITALIC('o', 0x14, Formatting.ITALIC,true),
+    ITALIC('o', 0x14, Formatting.ITALIC, true),
     /**
      * Resets all previous events colors or formats.
      */
     RESET('r', 0x15, Formatting.RESET),
     /**
      * Reverses the Text and background color
+     *
      * @apiNote Console Only
      */
     REVERSED('s', 0, null, "\\u001b[7m");
 
     private static String[] list() {
-        return new String[] {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+        return new String[]{"1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
                 "a", "b", "c", "d", "e", "f", "i", "k", "l", "m", "o", "r"};
     }
 
@@ -132,7 +131,7 @@ public enum TextFormat {
         this.intCode = intCode;
         this.isFormat = isFormat;
         this.formatting = formatting;
-        this.toString = new String(new char[] {COLOR_CHAR, code});
+        this.toString = new String(new char[]{COLOR_CHAR, code});
         this.ansi = ansi;
     }
 
@@ -162,7 +161,7 @@ public enum TextFormat {
         return TextFormat.list();
     }
 
-    public Formatting getFormattingByChar(char code) {
+    public Formatting getFormatting() {
         return formatting;
     }
 
@@ -204,7 +203,7 @@ public enum TextFormat {
      *
      * @param code Code to check
      * @return Associative {@link org.kilocraft.essentials.api} with the given code,
-     *     or null if it doesn't exist
+     * or null if it doesn't exist
      */
     @Nullable
     public static TextFormat getByChar(char code) {
@@ -216,7 +215,7 @@ public enum TextFormat {
      *
      * @param code Code to check
      * @return Associative {@link org.kilocraft.essentials.api} with the given code,
-     *     or null if it doesn't exist
+     * or null if it doesn't exist
      */
     @Nullable
     public static TextFormat getByChar(@NotNull String code) {
@@ -242,7 +241,7 @@ public enum TextFormat {
         return STRIP_COLOR_PATTERN.matcher(input).replaceAll("");
     }
 
-    public static Text translateToNMSText(String jsonString) {
+    public static Text translateJsonToText(String jsonString) {
         return Text.Serializer.fromJson(jsonString);
     }
 
@@ -252,7 +251,7 @@ public enum TextFormat {
      * character. The alternate color code character will only be replaced if
      * it is immediately followed by 0-9, A-F, a-f, K-O, k-o, R or r.
      *
-     * @param altColorChar The alternate color code character to replace. Ex: {@literal &}
+     * @param altColorChar    The alternate color code character to replace. Ex: {@literal &}
      * @param textToTranslate Text containing the alternate color code character.
      * @return Text containing the ChatColor.COLOR_CODE color code character.
      */
@@ -263,9 +262,9 @@ public enum TextFormat {
         char[] b = textToTranslate.toCharArray();
 
         for (int i = 0; i < b.length - 1; i++) {
-            if (b[i] == altColorChar && "0123456789AaBbCcDdEeFfKkLlMmNnOoRr".indexOf(b[i+1]) > -1) {
+            if (b[i] == altColorChar && "0123456789AaBbCcDdEeFfKkLlMmNnOoRr".indexOf(b[i + 1]) > -1) {
                 b[i] = TextFormat.COLOR_CHAR;
-                b[i+1] = Character.toLowerCase(b[i+1]);
+                b[i + 1] = Character.toLowerCase(b[i + 1]);
             }
         }
         return new String(b);
@@ -276,9 +275,9 @@ public enum TextFormat {
         char[] b = textToTranslate.toCharArray();
 
         for (int i = 0; i < b.length - 1; i++) {
-            if (b[i] == COLOR_CHAR && "0123456789AaBbCcDdEeFfKkLlMmNnOoRr".indexOf(b[i+1]) > -1) {
+            if (b[i] == COLOR_CHAR && "0123456789AaBbCcDdEeFfKkLlMmNnOoRr".indexOf(b[i + 1]) > -1) {
                 b[i] = altColorChar;
-                b[i+1] = Character.toLowerCase(b[i+1]);
+                b[i + 1] = Character.toLowerCase(b[i + 1]);
             }
         }
         return new String(b);
@@ -294,27 +293,10 @@ public enum TextFormat {
         return allowFormats ? translate(string) : TextFormat.removeAlternateColorCodes('&', string);
     }
 
-    public static LiteralText translateToLiteralText(char altColorChar, @NotNull String textToTranslate) {
-        return new LiteralText(translateAlternateColorCodes(altColorChar, textToTranslate));
-    }
-
     public static String clearColorCodes(@NotNull String textToClear) {
         return removeAlternateColorCodes(ALTERNATIVE_COLOR_CHAR, textToClear);
     }
 
-    public static String removeAlternateColorCodes(@NotNull String textToTranslate, char... chars) {
-        Validate.notNull(textToTranslate, "Cannot translate null text");
-        String string = "";
-        for (char aChar : chars) {
-            string = removeAlternateColorCodes(aChar, string);
-        }
-
-        for (LoggerFormats s : LoggerFormats.values()) {
-            string = string.replace(s.getCode(), "");
-        }
-
-        return string;
-    }
 
     public static String removeAlternateColorCodes(char altColorChar, @NotNull String textToTranslate) {
         Validate.notNull(textToTranslate, "Cannot translate null text");
@@ -323,96 +305,6 @@ public enum TextFormat {
             textToTranslate = textToTranslate.replace(String.valueOf(altColorChar) + c, "");
         }
         return textToTranslate;
-    }
-
-    public static LiteralText removeAlternateToLiteralText(char altColorChar, @NotNull String textToTranslate) {
-        return new LiteralText(removeAlternateColorCodes(altColorChar, textToTranslate));
-    }
-
-    public static void sendToUniversalSource(ServerCommandSource source, String text, boolean log) {
-        LiteralText literalText;
-        if (CommandUtils.isConsole(source)) {
-            literalText = new LiteralText(removeAlternateColorCodes('&', text));
-        } else {
-            literalText = new LiteralText(translateAlternateColorCodes('&', text));
-        }
-
-        source.sendFeedback(literalText, log);
-    }
-
-    public static void sendToUniversalSource(char altColorChar, ServerCommandSource source, String text, boolean log) {
-        LiteralText literalText;
-        if (CommandUtils.isConsole(source)) {
-            literalText = new LiteralText(removeAlternateColorCodes(altColorChar, text));
-        } else {
-            literalText = new LiteralText(translateAlternateColorCodes(altColorChar, text));
-        }
-
-        source.sendFeedback(literalText, log);
-    }
-
-    public static void sendToUniversalSource(ServerCommandSource source, LiteralText text, boolean log) {
-        sendToUniversalSource(source, text.asString(), log);
-    }
-
-    public static void sendToSource(ServerCommandSource source, boolean log, String text, Object... objects) {
-        sendToUniversalSource(source, String.format(text, objects), log);
-    }
-
-    /**
-     * Gets the ChatColors used at the end of the given input string.
-     *
-     * @param input Input string to retrieve the colors from.
-     * @return Any remaining ChatColors to pass onto the next line.
-     */
-    @NotNull
-    public static String getLastColors(@NotNull String input) {
-        Validate.notNull(input, "Cannot get last colors from null text");
-
-        String result = "";
-        int length = input.length();
-
-        // Search backwards from the end as it is faster
-        for (int index = length - 1; index > -1; index--) {
-            char section = input.charAt(index);
-            if (section == COLOR_CHAR && index < length - 1) {
-                char c = input.charAt(index + 1);
-                TextFormat color = getByChar(c);
-
-                if (color != null) {
-                    result = color.toString() + result;
-
-                    // Once we find a color or reset we can stop searching
-                    if (color.isColor() || color.equals(RESET)) {
-                        break;
-                    }
-                }
-            }
-        }
-
-        return result;
-    }
-
-    public static String getFormattedPing(int i) {
-        if (i < 200)
-            return "&a" + i;
-        if (i > 200 && i < 400)
-            return "&e" + i;
-
-        return "&c" + i;
-    }
-
-    public static char getFormattedTPS(double tps) {
-        if (tps > 15)
-            return 'a';
-        if (tps > 10)
-            return 'e';
-
-        return 'c';
-    }
-
-    public static char getFormattedPercentage(double percentage, boolean reverse) {
-        return percentage > 80 ? (reverse ? 'c' : 'a') : percentage < 40 ? (reverse ? 'a' : 'c') : 'e';
     }
 
     static {
